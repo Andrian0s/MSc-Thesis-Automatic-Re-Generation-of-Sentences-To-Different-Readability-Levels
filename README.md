@@ -1,4 +1,6 @@
 # Parameter-efficient Multi-task Fine-tuning for Transformers via Shared Hypernetworks
+
+(UPDATED VERSION for MThesis, README.md is to be updated)
 This repo contains the PyTorch implementation of the ACL, 2021 paper
 [Parameter-efficient Multi-task Fine-tuning for Transformers via Shared Hypernetworks](https://aclanthology.org/2021.acl-long.47.pdf).
 
