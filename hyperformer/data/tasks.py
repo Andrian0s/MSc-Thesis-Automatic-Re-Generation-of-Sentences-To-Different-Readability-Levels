@@ -1,14 +1,16 @@
 """Implements different tasks and defines the processors to convert each dataset
+
 to a sequence to sequence format."""
 from collections import OrderedDict
 
+import pandas as pd
 import abc
 import datasets
 import functools
 import logging
 import numpy as np
 import torch
-from hyperformer.metrics import metrics
+from metrics import metrics
 from typing import Callable, Dict, Mapping, List
 
 from .utils import round_stsb_target, compute_task_max_decoding_length
@@ -95,7 +97,7 @@ class AbstractTaskDataset(abc.ABC):
         return dataset.select(indices)
 
     def load_dataset(self, split: int):
-        return datasets.load_dataset(self.name, split=split, script_version="master")
+        return datasets.load_dataset(self.name, split=split, script_version="1.2.0")
 
     def get_train_split_indices(self, split):
         generator = torch.Generator()
@@ -122,7 +124,7 @@ class AbstractTaskDataset(abc.ABC):
         else:
             return indices[validation_size // 2:]
 
-    def get_dataset(self, split, n_obs=None, add_prefix=True, split_validation_test=False):
+    def get_dataset(self, split, n_obs=None, readability_extra = None, readability_vector_style = None, add_prefix=True, split_validation_test=False):
         # For small datasets (n_samples < 10K) without test set, we divide validation set to
         # half, use one half as test set and one half as validation set.
         if split_validation_test and self.name in self.small_datasets_without_all_splits \
@@ -142,12 +144,15 @@ class AbstractTaskDataset(abc.ABC):
         else:
             # TODO: later we can join these as one.
             if n_obs == -1:
-                split = self.get_sampled_split(split, n_obs)
-                dataset = self.load_dataset(split=split)
+                # split = self.get_sampled_split(split, n_obs)
+                if readability_extra is not None:
+                    dataset = self.load_dataset(split=split, readability_extra=readability_extra)
+                else:
+                    dataset = self.load_dataset(split=split)
             else:
                 # shuffles the data and samples it.
                 dataset = self.get_shuffled_sampled_split(split, n_obs)
-        return dataset.map(functools.partial(self.preprocessor, add_prefix=add_prefix),
+        return dataset.map(functools.partial(self.preprocessor, add_prefix=add_prefix, readability_vector_style=readability_vector_style),
                            remove_columns=dataset.column_names)
 
     def seq2seq_format(self, src_strs: List[str], tgt_strs: List[str],
@@ -157,7 +162,39 @@ class AbstractTaskDataset(abc.ABC):
         return {"src_texts": ' '.join(src_strs),
                 "tgt_texts": ' '.join(tgt_strs),
                 "task": self.name}
+    
+    def make_readability_hypernetwork_input_vector(self, src_readability, tgt_readability, readability_vector_style, readability_map):
+        """
+        Create a vector of the source and target readability scores, with a size of 32 for each pair of src_readability and tgt_readability.
+        
+        Parameters:
+        src_readability (str): The readability level of the source text.
+        tgt_readability (str): The readability level of the target text.
+        readability_vector_style (str): Determines the format of the output readability vector ('both', 'source_only', 'target_only', or 'difference').
+        readability_map (dict): A dictionary mapping readability levels to their corresponding scores.
 
+        Returns:
+        numpy.ndarray: A numpy array containing the calculated readability vector.
+        """
+        
+        # Create the source and target readability vectors
+        src_readability_vector = [1] * readability_map[src_readability] + [0] * (32 - readability_map[src_readability])
+        tgt_readability_vector = [1] * readability_map[tgt_readability] + [0] * (32 - readability_map[tgt_readability])
+
+        if readability_vector_style == 'both':
+            readability_vector_np = np.array(src_readability_vector + tgt_readability_vector)
+        elif readability_vector_style == 'source_only':
+            readability_vector_np = np.array(src_readability_vector + [0] * 32)
+        elif readability_vector_style == 'target_only':
+            readability_vector_np = np.array(tgt_readability_vector + [0] * 32)
+        elif readability_vector_style == 'difference':  # readability_vector_style is difference of the two, as a 64-dimensional vector
+            difference = readability_map[src_readability] - readability_map[tgt_readability]
+            sign = -1 if difference > 0 else 1
+            readability_vector = [sign] * abs(difference) + [0] * (64 - abs(difference))
+            readability_vector_np = np.array(readability_vector)
+        else: # We should never get here, but just in case
+            raise ValueError('Invalid input_style: ' + readability_vector_style)
+        return readability_vector_np
 
 class IMDBTaskDataset(AbstractTaskDataset):
     name = "imdb"
@@ -173,7 +210,55 @@ class IMDBTaskDataset(AbstractTaskDataset):
         tgt_texts = [str(example["label"])]
         return self.seq2seq_format(src_texts, tgt_texts, add_prefix)
 
+class OneStopParallelAllMappingClass(AbstractTaskDataset):
+    name = 'onestop_plhsrc_plhtgt'
+    task_specific_config = {'max_length': 300, 'num_beams': 4}
+    metrics = [
+    metrics.rouge,
+    metrics.AVG_GFI_SRC_PRED_DIFF,
+    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
+    metrics.AVG_FRE_SRC_PRED_DIFF,
+    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
+    metrics.AVG_FKGL_SRC_PRED_DIFF,
+    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
+    metrics.AVG_ARI_SRC_PRED_DIFF,
+    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
+    metrics.AVG_DCRF_SRC_PRED_DIFF,
+    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
+    metrics.AVG_SMOG_SRC_PRED_DIFF,
+    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
+    metrics.AVG_ASL_SRC_PRED_DIFF,
+    metrics.AVG_ASL_PRED_TGT_ABSDIFF,
+    ]
 
+
+    def load_dataset(self, split, readability_extra):
+        self.name = 'onestop_parallel_' + readability_extra
+        # Read the filtered DataFrame into a Hugging Face Dataset object
+        df = pd.read_csv(f"data/onestop_dataset/{readability_extra}/parallel_{split}.csv")
+        hf_dataset = datasets.Dataset.from_pandas(df)
+        return hf_dataset
+    
+    def seq2seq_format(self, src_strs: List[str], tgt_strs: List[str], readability_vector: np.ndarray,
+                    add_prefix: bool = False, prefix: str = None):
+        src_prefix = self.name if prefix is None else prefix
+        src_strs = [src_prefix] + src_strs if add_prefix else src_strs
+        return {"src_texts": ' '.join(src_strs),
+                "tgt_texts": ' '.join(tgt_strs),
+                "task": self.name,
+                "readability_vector": readability_vector}
+
+    def preprocessor(self, example, readability_vector_style, add_prefix=False):
+        # Extract the source and target texts from the provided example
+        src_texts = [example['SourceText']]
+        tgt_texts = [example['TargetText']]
+        readability_map = {'ADV': 32, 'INT': 16, 'ELE': 8}
+        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map)
+        # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
+        # This method combines the texts and adds an optional prefix to the source text
+        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')
+    
+    
 class SickTaskDataset(AbstractTaskDataset):
     name = "sick"
     label_list = ["0", "1", "2"]
@@ -466,7 +551,7 @@ class MRPCTaskDataset(AbstractTaskDataset):
 
     def load_dataset(self, split):
         return datasets.load_dataset('glue', 'mrpc',
-                                     split=split, script_version="master")
+                                     split=split, script_version="1.2.0")
 
     def preprocessor(self, example, add_prefix=True):
         src_texts = ["sentence1:", example['sentence1'],
@@ -732,6 +817,7 @@ class CommonsenseQaTaskDataset(AbstractTaskDataset):
 
 
 TASK_MAPPING = OrderedDict([
+    ('onestop_parallel_', OneStopParallelAllMappingClass),
     ('superglue-boolq', SuperGLUEBoolQTaskDataset),
     ('superglue-cb', SuperGLUECBTaskDataset),
     ('superglue-rte', SuperGLUERTETaskDataset),

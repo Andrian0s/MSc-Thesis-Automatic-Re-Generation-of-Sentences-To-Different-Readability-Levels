@@ -2,16 +2,16 @@ import glob
 import os
 from dataclasses import asdict
 from logging import getLogger
-from hyperformer.third_party.utils import (
+from third_party.utils import (
     assert_all_frozen,
     freeze_embeds,
     freeze_params,
     save_json)
 from transformers.modeling_t5 import T5LayerNorm
 
-from hyperformer.adapters import (AdapterController, MetaAdapterController, 
+from adapters import (AdapterController, MetaAdapterController, 
                               AdapterLayersHyperNetController, AdapterLayersOneHyperNetController)
-from hyperformer.data import TASK_MAPPING
+from data import TASK_MAPPING
 
 logger = getLogger(__name__)
 
@@ -85,6 +85,7 @@ def get_last_checkpoint_path(output_dir):
 
 def use_task_specific_params(model, task):
     """Update config with task specific params during evaluation."""
+    task = 'onestop_parallel_' if task.startswith('onestop_parallel_') else task
     task_dataset = TASK_MAPPING[task]
     task_specific_config = task_dataset.task_specific_config
     if task_specific_config is not None:

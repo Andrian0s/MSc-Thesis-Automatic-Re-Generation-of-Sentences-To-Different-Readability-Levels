@@ -31,6 +31,7 @@ class MetaAdapterConfig(AdapterConfig):
     task_embedding_dir = None
     hidden_dim = 128
     train_task_embeddings = False
+    train_readability_vector = False
     projected_task_embedding_dim = 64
     task_hidden_dim = 128
     parametric_task_embedding = False

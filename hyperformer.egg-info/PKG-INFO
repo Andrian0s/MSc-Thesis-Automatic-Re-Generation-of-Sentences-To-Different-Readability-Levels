@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: hyperformer
+Version: 0.0.1
+Summary: HyperFormer
+License: MIT License
+Keywords: text nlp machinelearning
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+hyperformer

@@ -9,15 +9,15 @@ from pathlib import Path
 from transformers import AutoTokenizer, HfArgumentParser, set_seed
 from transformers.trainer_utils import EvaluationStrategy
 
-from hyperformer.third_party.models import T5Config, T5ForConditionalGeneration
-from hyperformer.third_party.trainers import T5Trainer
-from hyperformer.adapters import AdapterController, AutoAdapterConfig
-from hyperformer.data import AutoTask
-from hyperformer.third_party.utils import TaskCollator, check_output_dir
-from hyperformer.metrics import build_compute_metrics_fn
-from hyperformer.training_args import Seq2SeqTrainingArguments, ModelArguments, DataTrainingArguments, \
+from third_party.models import T5Config, T5ForConditionalGeneration
+from third_party.trainers import T5Trainer
+from adapters import AdapterController, AutoAdapterConfig
+from data import AutoTask
+from third_party.utils import TaskCollator, check_output_dir
+from metrics import build_compute_metrics_fn
+from training_args import Seq2SeqTrainingArguments, ModelArguments, DataTrainingArguments, \
     AdapterTrainingArguments
-from hyperformer.utils import freezing_params, get_last_checkpoint_path, create_dir,\
+from utils import freezing_params, get_last_checkpoint_path, create_dir,\
     handle_metrics, get_training_args
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,7 @@ def main():
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO if training_args.local_rank in [-1, 0] else logging.WARN,
+	filename="output.log",  # Add this line to log messages to a file named "output.log"
     )
     logger.warning(
         "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
@@ -106,6 +107,7 @@ def main():
                                 "hidden_dim",
                                 "non_linearity",
                                 "train_task_embeddings",
+                                "train_readability_vector",
                                 "projected_task_embedding_dim",
                                 "task_hidden_dim",
                                 "conditional_layer_norm",
@@ -122,11 +124,19 @@ def main():
     else:
         adapter_config = None
 
+    if data_args.readability_vector_style is not 'none':
+        adapter_config.readability_vector_style = data_args.readability_vector_style
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else \
             model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
     )
+    logger.info('FOLLOW THROUGH : CONFIG')
+    logger.info(config)
+    logger.info('FOLLOW THROUGH : ADAPTER_CONFIG')
+    logger.info(adapter_config)
+    logger.info('FOLLOW THROUGH : TRAINING_ARGS')
+    logger.info(training_args)
     if model_args.not_load_t5_checkpoint:
         model = T5ForConditionalGeneration(config=config, adapter_config=adapter_config)
     else:
@@ -162,30 +172,122 @@ def main():
     # Gets the training/test/validation datasets.
     dataset_class = AutoTask
     if training_args.do_train:
-        train_datasets = [dataset_class.get(task, seed=data_args.data_seed).get_dataset(
-            split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True)
-            for task in data_args.tasks]
-        dataset_sizes = [len(train_dataset) for train_dataset in train_datasets]
-        train_dataset = datasets.concatenate_datasets(train_datasets)
+        train_datasets = []
+        for task in data_args.tasks:
+            if task.startswith("onestop_parallel_"): # format is: onestop_parallel_adv_ele , onestop_parallel_adv_int
+                readability_extra = task[len("onestop_parallel_"):]
+                task = "onestop_parallel_"
+                train_datasets.append(dataset_class.get(task, seed=data_args.data_seed).get_dataset(
+                split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style))
+            else:
+                train_datasets.append(dataset_class.get(task, seed=data_args.data_seed).get_dataset(
+                split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True))
+    dataset_sizes = [len(train_dataset) for train_dataset in train_datasets]
+    train_dataset = datasets.concatenate_datasets(train_datasets)
     training_args.remove_unused_columns = False
-    eval_datasets = ({task: dataset_class.get(task, seed=data_args.data_seed).get_dataset(
-        split="validation", n_obs=data_args.n_val,
-        add_prefix=False if training_args.train_adapters else True,
-        split_validation_test=training_args.split_validation_test)
-                         for task in data_args.eval_tasks}
-                     if training_args.do_eval or training_args.evaluation_strategy != EvaluationStrategy.NO
-                     else None)
-    test_dataset = (
-        {task: dataset_class.get(task, seed=data_args.data_seed).get_dataset(
-            split="test", n_obs=data_args.n_test,
-            add_prefix=False if training_args.train_adapters else True,
-            split_validation_test=training_args.split_validation_test)
-            for task in data_args.eval_tasks} if training_args.do_test else None
-    )
+    
+    # Refactored eval_datasets code cell
+    if training_args.do_eval or training_args.evaluation_strategy != EvaluationStrategy.NO:
+        eval_datasets = {}
+        for task in data_args.eval_tasks:
+            # Check if the task starts with "onestop_parallel_"
+            if task.startswith("onestop_parallel_"):
+                readability_extra = task[len("onestop_parallel_"):]
+                task_name = "onestop_parallel_"
+
+                # Get the dataset for the task with the readability_extra parameter
+                eval_datasets[task] = dataset_class.get(
+                    task_name, seed=data_args.data_seed
+                ).get_dataset(
+                    split="validation",
+                    n_obs=data_args.n_val,
+                    add_prefix=False if training_args.train_adapters else True,
+                    split_validation_test=training_args.split_validation_test,
+                    readability_extra=readability_extra,
+                    readability_vector_style=data_args.readability_vector_style,
+                )
+            else:
+                # Get the dataset for the task without the readability_extra parameter
+                eval_datasets[task] = dataset_class.get(
+                    task, seed=data_args.data_seed
+                ).get_dataset(
+                    split="validation",
+                    n_obs=data_args.n_val,
+                    add_prefix=False if training_args.train_adapters else True,
+                    split_validation_test=training_args.split_validation_test,
+                )
+    else:
+        eval_datasets = None
+
+    # Refactored test_dataset code cell
+    if training_args.do_test:
+        test_dataset = {}
+        for task in data_args.eval_tasks:
+            # Check if the task starts with "onestop_parallel_"
+            if task.startswith("onestop_parallel_"):
+                readability_extra = task[len("onestop_parallel_"):]
+                task_name = "onestop_parallel_"
+
+                # Get the dataset for the task with the readability_extra parameter
+                test_dataset[task] = dataset_class.get(
+                    task_name, seed=data_args.data_seed
+                ).get_dataset(
+                    split="test",
+                    n_obs=data_args.n_test,
+                    add_prefix=False if training_args.train_adapters else True,
+                    split_validation_test=training_args.split_validation_test,
+                    readability_extra=readability_extra,
+                    readability_vector_style=data_args.readability_vector_style
+                )
+            else:
+                # Get the dataset for the task without the readability_extra parameter
+                test_dataset[task] = dataset_class.get(
+                    task, seed=data_args.data_seed
+                ).get_dataset(
+                    split="test",
+                    n_obs=data_args.n_test,
+                    add_prefix=False if training_args.train_adapters else True,
+                    split_validation_test=training_args.split_validation_test,
+                )
+    else:
+        test_dataset = None
+
     # Defines the metrics for evaluation.
     compute_metrics_fn = (
         build_compute_metrics_fn(data_args.eval_tasks, tokenizer) if training_args.predict_with_generate else None
     )
+    logger.info("BEFORE THE TRAINER CLASS INITIALISATION")
+    logger.info("model (type: {}) :".format(type(model)))
+    logger.info(model)
+
+    logger.info("config (type: {}) :".format(type(config)))
+    logger.info(config)
+
+    logger.info("training_args (type: {}) :".format(type(training_args)))
+    logger.info(training_args)
+
+    logger.info("train_dataset (type: {}) :".format(type(train_dataset)))
+    logger.info(train_dataset)
+
+    logger.info("eval_datasets (type: {}) :".format(type(eval_datasets)))
+    logger.info(eval_datasets)
+
+    data_collator = TaskCollator(tokenizer, data_args, tpu_num_cores=training_args.tpu_num_cores)
+    logger.info("data_collator (type: {}) :".format(type(data_collator)))
+    logger.info(data_collator)
+
+    logger.info("compute_metrics_fn (type: {}) :".format(type(compute_metrics_fn)))
+    logger.info(compute_metrics_fn)
+
+    logger.info("data_args (type: {}) :".format(type(data_args)))
+    logger.info(data_args)
+
+    logger.info("dataset_sizes (type: {}) :".format(type(dataset_sizes)))
+    logger.info(dataset_sizes)
+
+    logger.info("adapter_config (type: {}) :".format(type(adapter_config)))
+    logger.info(adapter_config)
+
     # Defines the trainer.
     trainer = T5Trainer(
         model=model,

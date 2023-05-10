@@ -52,9 +52,9 @@ if is_torch_tpu_available():
 from typing import Any, Dict, Optional, Tuple, Union
 from torch.utils.data.dataset import Dataset
 
-from hyperformer.adapters import MetaAdapterConfig
-from hyperformer.utils import use_task_specific_params, reset_config
-from hyperformer.data import MultiTaskBatchSampler
+from adapters import MetaAdapterConfig
+from utils import use_task_specific_params, reset_config
+from data import MultiTaskBatchSampler
 
 logger = logging.get_logger(__name__)
 
@@ -105,7 +105,7 @@ class T5Trainer(Trainer):
             self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=self.config.pad_token_id)
         else:
             # dynamically import label_smoothed_nll_loss
-            from hyperformer.third_party.utils import label_smoothed_nll_loss
+            from third_party.utils import label_smoothed_nll_loss
 
             self.loss_fn = label_smoothed_nll_loss
 
@@ -277,7 +277,7 @@ class T5Trainer(Trainer):
         """
         # This might change the seed so needs to run first.
         self._hp_search_setup(trial)
-
+        print(model_path)
         # Model re-init
         if self.model_init is not None:
             # Seed must be set before instantiating the model when using model_init.
@@ -292,10 +292,13 @@ class T5Trainer(Trainer):
 
         # Keeping track whether we can can len() on the dataset or not
         train_dataset_is_sized = isinstance(self.train_dataset, collections.abc.Sized)
-
+        print(self.train_dataset)
         # Data loader and number of training steps
         train_dataloader = self.get_train_dataloader()
 
+        logger.info('THE TRAIN DATALOADER IS: ')
+        logger.info(train_dataloader)
+        
         # Setting up training control variables:
         # number of training epochs: num_train_epochs
         # number of training steps per epoch: num_update_steps_per_epoch
@@ -533,7 +536,7 @@ class T5Trainer(Trainer):
     def prediction_step(
             self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]],
             prediction_loss_only: bool
-    ) -> Tuple[Optional[float], Optional[torch.Tensor], Optional[torch.Tensor]]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[float], Optional[torch.Tensor], Optional[torch.Tensor]]:
         """
         Perform an evaluation step on :obj:`model` using obj:`inputs`.
 
@@ -563,6 +566,8 @@ class T5Trainer(Trainer):
         gen_kwargs["task"] = inputs["task"]
         gen_kwargs["task_embedding"] = model.task_embedding_controller(inputs["task"]) if \
             (self.config.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None
+        gen_kwargs["readability_vector"] = inputs["readability_vector"] if \
+            (self.config.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None
         if self.args.predict_with_generate and not self.args.prediction_loss_only:
             generated_tokens = self.model.generate(
                 inputs["input_ids"],
@@ -580,14 +585,14 @@ class T5Trainer(Trainer):
 
         loss = loss.mean().detach()
         if self.args.prediction_loss_only:
-            return (loss, None, None)
+            return (inputs["input_ids"], loss, None, None)
 
         logits = generated_tokens if self.args.predict_with_generate else logits
 
         if labels.shape[-1] < gen_kwargs["max_length"]:
             labels = self._pad_tensors_to_max_len(labels, gen_kwargs["max_length"])
 
-        return (loss, logits, labels)
+        return (inputs["input_ids"], loss, logits, labels)
 
     def _pad_tensors_to_max_len(self, tensor, max_length):
         # If PAD token is not defined at least EOS token has to be defined

@@ -10,7 +10,7 @@ from transformers.modeling_t5 import (T5PreTrainedModel, T5LayerNorm, T5Block,
                                       T5DenseReluDense, T5Attention, T5LayerCrossAttention)
 from transformers.utils import logging
 
-from hyperformer.adapters import (AutoAdapterController, MetaAdapterConfig,
+from adapters import (AutoAdapterController, MetaAdapterConfig,
                               TaskEmbeddingController, LayerNormHyperNet,
                               AdapterLayersHyperNetController,
                               MetaLayersAdapterController,
@@ -259,7 +259,8 @@ class T5Stack(T5PreTrainedModel):
             output_hidden_states=None,
             return_dict=None,
             task=None,
-            task_embedding=None
+            task_embedding=None,
+            readability_vector=None
     ):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -330,7 +331,10 @@ class T5Stack(T5PreTrainedModel):
             # Computes the adapter weights for the T5 Block.
             t5_block_adapters = None
             if self.train_adapters and (self.unique_hyper_net or self.efficient_unique_hyper_net):
-                t5_block_adapters = self.adapter_layers_hyper_net(task_embedding, i)
+                if readability_vector:
+                    t5_block_adapters = self.adapter_layers_hyper_net(task_embedding, i, readability_vector)    
+                else:
+                    t5_block_adapters = self.adapter_layers_hyper_net(task_embedding, i)
 
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
@@ -515,8 +519,14 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
                 FutureWarning,
             )
             past_key_values = kwargs.pop("decoder_past_key_values")
-        assert kwargs == {}, f"Unexpected keyword arguments: {list(kwargs.keys())}."
-
+        if "readability_vector" in kwargs:
+            warnings.warn(
+                "Using readability_vector'as input to train the model. Modelling_t5.py should be changed accordingly.",FutureWarning
+            )
+            # readability_vector = kwargs.get("readability_vector")
+            readability_vector = kwargs.pop("readability_vector")
+        # assert kwargs == {} or kwargs.keys() == {"readability_vector"} , f"Unexpected keyword arguments: {list(kwargs.keys())}."
+        assert kwargs == {} , f"Unexpected keyword arguments: {list(kwargs.keys())}."
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -534,7 +544,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
                 task=task,
                 task_embedding=self.task_embedding_controller(task) if self.train_adapters \
                                                                        and isinstance(self.adapter_config,
-                                                                                      MetaAdapterConfig) else None
+                                                                                      MetaAdapterConfig) else None,
+                readability_vector = readability_vector
             )
         elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
             encoder_outputs = BaseModelOutput(
@@ -571,7 +582,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             return_dict=return_dict,
             task=task,
             task_embedding=self.task_embedding_controller(task) \
-                if (self.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None
+                if (self.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None,
+            readability_vector = readability_vector
         )
 
         sequence_output = decoder_outputs[0]
@@ -615,7 +627,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             "attention_mask": attention_mask,
             "use_cache": use_cache,
             "task": kwargs["task"],
-            "task_embedding": kwargs["task_embedding"]
+            "task_embedding": kwargs["task_embedding"],
+            "readability_vector": kwargs["readability_vector"]
         }
 
     def _reorder_cache(self, past, beam_idx):

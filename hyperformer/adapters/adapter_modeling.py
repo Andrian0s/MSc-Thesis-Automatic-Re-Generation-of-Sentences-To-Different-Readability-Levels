@@ -86,7 +86,8 @@ class AdapterLayersHyperNetController(nn.Module):
                                                 self.task_embedding_dim).to(self.device)
         # self.token_type_embeddings = nn.Embedding(self.max_position_embeddings,
         #                                          self.task_embedding_dim).to(self.device)
-        config.task_embedding_dim = self.task_embedding_dim * 2
+        config.task_embedding_dim = self.task_embedding_dim * (2 + (0 if config.readability_vector_style == 'None' else 1))
+        print(' THE TEMP TASK EMBEDDING DIM' +str(config.task_embedding_dim))
         self.task_hypernet = TaskHyperNet(config)
         config.task_embedding_dim = self.task_embedding_dim
         self.unique_hyper_net_layer_norm = config.unique_hyper_net_layer_norm
@@ -116,20 +117,28 @@ class AdapterLayersHyperNetController(nn.Module):
             self.self_attention_post_layernorm_hypernet = LayerNormHyperNet(config)
         config.train_task_embeddings = self.train_task_embeddings
 
-    def get_embedding(self, task_embedding, layer_id):
+    def get_embedding(self, task_embedding, layer_id, readability=None):
         """Concatenates the task embedding with the embedding for the layer id and
         returns the final joint embedding."""
         layer_id_tensor = torch.tensor([layer_id], dtype=torch.long, device=self.device)
         layer_embedding = self.layer_id_embeddings(layer_id_tensor)
         layer_embedding = layer_embedding.view(-1)
         embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1)], axis=0)
+        
+        if readability:
+            readability_embedding = torch.FloatTensor(readability).to(self.device)
+            embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1), readability_embedding.view(1, -1)],
+                                axis=0)
+        else:
+            embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1),],
+                                axis=0)
         embeddings = self.task_hypernet(embeddings.view(-1))
         if self.unique_hyper_net_layer_norm:
             embeddings = self.LayerNorm(embeddings)
         return embeddings
 
-    def forward(self, task_embedding, layer_id):
-        embeddings = self.get_embedding(task_embedding, layer_id)
+    def forward(self, task_embedding, layer_id, readability=None):
+        embeddings = self.get_embedding(task_embedding, layer_id, readability=readability)
         # Generates the adapters weights in feed-forward and self-attention modules.
         feed_forward_down = self.feed_forward_down_sampler_hyper_net(embeddings)
         feed_forward_up = self.feed_forward_up_sampler_hyper_net(embeddings)
@@ -169,7 +178,7 @@ class AdapterLayersOneHyperNetController(nn.Module):
         # This is 2 types of adapters for feed-forward, and self-attention.
         self.adapters_block_type = nn.Embedding(2, self.task_embedding_dim).to(self.device)
 
-        config.task_embedding_dim = self.task_embedding_dim * 3
+        config.task_embedding_dim = self.task_embedding_dim * (3 + (0 if config.readability_vector_style == 'None' else 1))
         self.task_hypernet = TaskHyperNet(config)
         config.task_embedding_dim = self.task_embedding_dim
         self.unique_hyper_net_layer_norm = config.unique_hyper_net_layer_norm
@@ -193,8 +202,8 @@ class AdapterLayersOneHyperNetController(nn.Module):
             self.post_layernorm_hypernet = LayerNormHyperNet(config)
         config.train_task_embeddings = self.train_task_embeddings
 
-    def get_embedding(self, task_embedding, layer_id, block_type):
-        """Concatenates the task embedding with the embedding for the layer id and
+    def get_embedding(self, task_embedding, layer_id, block_type, readability=None):
+        """Concatenates the task embedding with the embedding for the layer id and readability and
         returns the final joint embedding."""
         layer_id_tensor = torch.tensor([layer_id], dtype=torch.long, device=self.device)
         layer_embedding = self.layer_id_embeddings(layer_id_tensor)
@@ -202,17 +211,29 @@ class AdapterLayersOneHyperNetController(nn.Module):
         type_embedding = self.adapters_block_type(type_id_tensor)
         layer_embedding = layer_embedding.view(-1)
         type_embedding = type_embedding.view(-1)
-        embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1), type_embedding.view(1, -1)],
-                               axis=0)
+        if readability:
+            readability_embedding = torch.FloatTensor(readability).to(self.device)
+            embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1), type_embedding.view(1, -1), readability_embedding.view(1, -1)],
+                                axis=0)
+        else:
+            embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1), type_embedding.view(1, -1)],
+                                axis=0)
         embeddings = self.task_hypernet(embeddings.view(-1))
         if self.unique_hyper_net_layer_norm:
             embeddings = self.LayerNorm(embeddings)
         return embeddings
 
-    def forward(self, task_embedding, layer_id):
-        feed_forward_embeddings = self.get_embedding(task_embedding, layer_id, 0)
-        self_attention_embeddings = self.get_embedding(task_embedding, layer_id, 1)
+    def forward(self, task_embedding, layer_id, readability=None):
+        feed_forward_embeddings = self.get_embedding(task_embedding, layer_id, 0, readability)
+        self_attention_embeddings = self.get_embedding(task_embedding, layer_id, 1, readability)
 
+        # print('Feed Forward Embeddings shape : ' + str(feed_forward_embeddings.shape))
+        # print('Feed Forward Embeddings: ')
+        # print(feed_forward_embeddings)
+        
+        # print('Self Attention Embeddings shape : ' + str(self_attention_embeddings.shape))
+        # print('Self Attention Embeddings: ')
+        # print(self_attention_embeddings)
         # Generates the adapters weights in feed-forward.
         feed_forward_down = self.down_sampler_hyper_net(feed_forward_embeddings)
         feed_forward_up = self.up_sampler_hyper_net(feed_forward_embeddings)

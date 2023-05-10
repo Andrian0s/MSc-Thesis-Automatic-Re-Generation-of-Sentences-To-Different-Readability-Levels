@@ -72,9 +72,12 @@ class TaskEmbeddingController(nn.Module):
             self.tasks = self.task_to_task_embeddings.values()
         self.set_task_embeddings(self.tasks)
         self.train_task_embeddings = config.train_task_embeddings
+        self.train_readability_vector = config.train_readability_vector
         if self.train_task_embeddings:
             self.task_hyper_net = TaskHyperNet(config)
-
+        if self.train_readability_vector:
+            self.readability_vector_hyper_net = TaskHyperNet(config)
+        
     def get_task(self, task):
         return self.task_to_task_embeddings[task]
 
@@ -83,10 +86,13 @@ class TaskEmbeddingController(nn.Module):
         for task in tasks:
             task_embedding = torch.Tensor(torch.randn(self.task_embedding_dim)).to(self.device)
             self.task_to_embeddings[task] = nn.Parameter(task_embedding)
+        print(self.task_to_embeddings)
 
     def forward(self, task):
         task_mapped = self.get_task(task)
         task_embedding = self.task_to_embeddings[task_mapped]
         if self.train_task_embeddings:
             return self.task_hyper_net(task_embedding)
+        # if self.train_readability_vector: maybe just swap?
+        # figure this out later?
         return task_embedding

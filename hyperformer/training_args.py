@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass, field
-from hyperformer.adapters import ADAPTER_CONFIG_MAPPING
+from adapters import ADAPTER_CONFIG_MAPPING
 from transformers import TrainingArguments
 from transformers.optimization import (
     get_constant_schedule,
@@ -81,6 +81,12 @@ class Seq2SeqTrainingArguments(TrainingArguments):
     compute_memory: Optional[bool] = field(default=False,
                                            metadata={"help": "If specified, measures the memory needed."})
     compute_time: Optional[bool] = field(default=False, metadata={"help": "If specified, measures the time needed."})
+    include_inputs_for_metrics: Optional[bool] = field(
+        default=True,
+        metadata={
+            "help": "Whether to include the inputs for the metrics calculation. True in the readability vector case, False otherwise." 
+        },
+    )
 
 
 @dataclass
@@ -163,6 +169,12 @@ class DataTrainingArguments:
                     "than this will be truncated, sequences shorter will be padded."
         },
     )
+    readability_vector_style: Optional[str] = field(
+        default='both',
+        metadata={
+            "help": "The style of the initial readabiltiy vector if any, Options are 'both', 'source_only', 'target_only', 'difference', 'None'." 
+        },
+    )
     n_train: Optional[int] = field(default=-1, metadata={"help": "# training examples. -1 means use all."})
     n_val: Optional[int] = field(default=-1, metadata={"help": "# validation examples. -1 means use all."})
     n_test: Optional[int] = field(default=-1, metadata={"help": "# test examples. -1 means use all."})
@@ -194,6 +206,8 @@ class AdapterTrainingArguments:
     non_linearity: Optional[str] = field(default="swish", metadata={"help": "Defines nonlinearity for adapter layers."})
     train_task_embeddings: Optional[bool] = field(default=False, metadata={"help": "If specified learns the tasks "
                                                                                    "embeddings from given task seedings."})
+    train_readability_vector: Optional[bool] = field(default=False, metadata={"help": "If specified learns the readability vector "
+                                                                                   "embeddings from given initial_readability_vector"})
     projected_task_embedding_dim: Optional[int] = field(default=64,
                                                         metadata={"help": "Defines the task embedding dimension"
                                                                           " after projection layer. "})

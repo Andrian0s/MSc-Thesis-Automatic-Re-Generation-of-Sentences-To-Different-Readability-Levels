@@ -689,6 +689,7 @@ class TaskCollator:
       "labels": labels,
     }
     output_batch["task"] = batch["task"]
+    output_batch["readability_vector"] = batch["readability_vector"]
     return output_batch
 
   def _shift_right_t5(self, input_ids):
@@ -708,7 +709,11 @@ class TaskCollator:
       return_tensors="pt"
     )
     tasks = [x["task"] for x in batch]
+    readability = [x["readability_vector"] for x in batch]
     # There should be only one task per batch.
     assert (len(set(tasks)) == 1)
     batch_encoding["task"] = tasks[0]
+    # There should be only one readability_vector per batch.
+    # assert (len(set(readability )) == 1) # Convert the lists then assert readability = [tuple(read) for read in readability]
+    batch_encoding["readability_vector"] = readability[0] if isinstance(readability[0], list) else readability
     return batch_encoding.data
