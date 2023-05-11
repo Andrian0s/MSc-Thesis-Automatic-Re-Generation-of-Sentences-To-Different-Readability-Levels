@@ -1,9 +1,8 @@
 import re
 import matplotlib.pyplot as plt
-import numpy as np
 
 # Read the content of the log files
-file_name = 'output.log'
+file_name = 't5_small_hyperformer.log'
 file_names = [
     file_name
 ]
@@ -36,6 +35,13 @@ new_metric_suffixes = [
     'AVG_DCRF_PRED_TGT_ABSDIFF',
     'AVG_SMOG_PRED_TGT_ABSDIFF',
     'AVG_ASL_PRED_TGT_ABSDIFF',
+    'TGT_ONLY_GFI',
+    'TGT_ONLY_FRE',
+    'TGT_ONLY_FKGL',
+    'TGT_ONLY_ARI',
+    'TGT_ONLY_DCRF',
+    'TGT_ONLY_SMOG',
+    'TGT_ONLY_ASL'
 ]
 
 metric_suffixes = new_metric_suffixes
@@ -67,8 +73,7 @@ def extract_values(log_content, metric):
 
 # Function to extract condensed metric names
 def condensed_metric_name(metric):
-    metric = metric.replace('onestop_parallel_', '').replace('_eval_', '').replace('adv_', '').replace('int_', '').replace('ele_', '')
-    return metric[3:]
+    return metric.split('_')[-1]
 
 # Plot the metrics independently for all models
 for metric_id, metric in enumerate(metric_suffixes):
@@ -79,17 +84,10 @@ for metric_id, metric in enumerate(metric_suffixes):
             current_metric = metrics[model_name][i][metric_id]
             values = extract_values(log_content, current_metric)[:-1]
             row, col = divmod(i, 3)
-
-            # Calculate the number of steps between each plot point
-            steps = np.linspace(0, 65536, num=len(values))
-
-            axes[row, col].plot(steps, values)
-            axes[row, col].set_xlabel('Steps')
+            axes[row, col].plot(values)
+            axes[row, col].set_xlabel('Index')
             axes[row, col].set_ylabel(condensed_metric_name(current_metric))
             axes[row, col].set_title(f"{combination[0]}_{combination[1]}: {condensed_metric_name(current_metric)}")
-
-            # Set x-axis to show equal increments up to 65000
-            axes[row, col].set_xticks(np.arange(0, 65536, 15000))  # Modify the step size according to your preference
     
     plt.tight_layout()
-    plt.savefig(f'{metric}_comparison_plot.png', dpi=300)
+    plt.savefig(f'{condensed_metric_name(metric)}_comparison_plot.png', dpi=300)
