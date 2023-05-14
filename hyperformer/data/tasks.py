@@ -195,23 +195,9 @@ class AbstractTaskDataset(abc.ABC):
         else: # We should never get here, but just in case
             raise ValueError('Invalid input_style: ' + readability_vector_style)
         return readability_vector_np
-
-class IMDBTaskDataset(AbstractTaskDataset):
-    name = "imdb"
-    split_to_data_split = {"train": "train",
-                           "validation": "test",
-                           "test": "test"}
-    label_list = ["0", "1"]
-    task_specific_config = {'max_length': compute_task_max_decoding_length(label_list)}
-    metrics = [metrics.accuracy]
-
-    def preprocessor(self, example, add_prefix=True):
-        src_texts = [example["text"]]
-        tgt_texts = [str(example["label"])]
-        return self.seq2seq_format(src_texts, tgt_texts, add_prefix)
-
-class OneStopParallelAllMappingClass(AbstractTaskDataset):
-    name = 'onestop_plhsrc_plhtgt'
+    
+class OneStopParallelTextMappingClass(AbstractTaskDataset):
+    name = 'onestop_parallel_text_plhsrc_plhtgt'
     task_specific_config = {'max_length': 300, 'num_beams': 4}
     metrics = [
     metrics.rouge,
@@ -233,9 +219,57 @@ class OneStopParallelAllMappingClass(AbstractTaskDataset):
 
 
     def load_dataset(self, split, readability_extra):
-        self.name = 'onestop_parallel_' + readability_extra
+        self.name = 'onestop_parallel_text_' + readability_extra
         # Read the filtered DataFrame into a Hugging Face Dataset object
-        df = pd.read_csv(f"data/onestop_dataset/{readability_extra}/parallel_{split}.csv")
+        df = pd.read_csv(f"data/onestop_dataset/text_level/{readability_extra}/parallel_{split}.csv")
+        hf_dataset = datasets.Dataset.from_pandas(df)
+        return hf_dataset
+    
+    def seq2seq_format(self, src_strs: List[str], tgt_strs: List[str], readability_vector: np.ndarray,
+                    add_prefix: bool = False, prefix: str = None):
+        src_prefix = self.name if prefix is None else prefix
+        src_strs = [src_prefix] + src_strs if add_prefix else src_strs
+        return {"src_texts": ' '.join(src_strs),
+                "tgt_texts": ' '.join(tgt_strs),
+                "task": self.name,
+                "readability_vector": readability_vector}
+
+    def preprocessor(self, example, readability_vector_style, add_prefix=False):
+        # Extract the source and target texts from the provided example
+        src_texts = [example['SourceText']]
+        tgt_texts = [example['TargetText']]
+        readability_map = {'ADV': 32, 'INT': 16, 'ELE': 8}
+        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map)
+        # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
+        # This method combines the texts and adds an optional prefix to the source text
+        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')
+
+class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
+    name = 'onestop_parallel_sentence_plhsrc_plhtgt'
+    task_specific_config = {'max_length': 300, 'num_beams': 4}
+    metrics = [
+    metrics.rouge,
+    metrics.AVG_GFI_SRC_PRED_DIFF,
+    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
+    metrics.AVG_FRE_SRC_PRED_DIFF,
+    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
+    metrics.AVG_FKGL_SRC_PRED_DIFF,
+    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
+    metrics.AVG_ARI_SRC_PRED_DIFF,
+    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
+    metrics.AVG_DCRF_SRC_PRED_DIFF,
+    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
+    metrics.AVG_SMOG_SRC_PRED_DIFF,
+    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
+    metrics.AVG_ASL_SRC_PRED_DIFF,
+    metrics.AVG_ASL_PRED_TGT_ABSDIFF,
+    ]
+
+
+    def load_dataset(self, split, readability_extra):
+        self.name = 'onestop_parallel_sentence_' + readability_extra
+        # Read the filtered DataFrame into a Hugging Face Dataset object
+        df = pd.read_csv(f"data/onestop_dataset/sentence_level/{readability_extra}/parallel_{split}.csv")
         hf_dataset = datasets.Dataset.from_pandas(df)
         return hf_dataset
     
@@ -258,7 +292,20 @@ class OneStopParallelAllMappingClass(AbstractTaskDataset):
         # This method combines the texts and adds an optional prefix to the source text
         return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')
     
-    
+class IMDBTaskDataset(AbstractTaskDataset):
+    name = "imdb"
+    split_to_data_split = {"train": "train",
+                           "validation": "test",
+                           "test": "test"}
+    label_list = ["0", "1"]
+    task_specific_config = {'max_length': compute_task_max_decoding_length(label_list)}
+    metrics = [metrics.accuracy]
+
+    def preprocessor(self, example, add_prefix=True):
+        src_texts = [example["text"]]
+        tgt_texts = [str(example["label"])]
+        return self.seq2seq_format(src_texts, tgt_texts, add_prefix)
+   
 class SickTaskDataset(AbstractTaskDataset):
     name = "sick"
     label_list = ["0", "1", "2"]
@@ -817,7 +864,8 @@ class CommonsenseQaTaskDataset(AbstractTaskDataset):
 
 
 TASK_MAPPING = OrderedDict([
-    ('onestop_parallel_', OneStopParallelAllMappingClass),
+    ('onestop_parallel_sentence_', OneStopParallelSentenceMappingClass) ,
+    ('onestop_parallel_text_', OneStopParallelTextMappingClass),
     ('superglue-boolq', SuperGLUEBoolQTaskDataset),
     ('superglue-cb', SuperGLUECBTaskDataset),
     ('superglue-rte', SuperGLUERTETaskDataset),

@@ -174,10 +174,18 @@ def main():
     if training_args.do_train:
         train_datasets = []
         for task in data_args.tasks:
-            if task.startswith("onestop_parallel_"): # format is: onestop_parallel_adv_ele , onestop_parallel_adv_int
-                readability_extra = task[len("onestop_parallel_"):]
-                task = "onestop_parallel_"
-                train_datasets.append(dataset_class.get(task, seed=data_args.data_seed).get_dataset(
+            if task.startswith("onestop_parallel_"): # format is: onestop_parallel_sentence/text_adv_ele , onestop_parallel_sentence/text_adv_int
+                if 'sentence' in task:
+                    readability_extra = task[len("onestop_parallel_sentence_"):]
+                    task_name = "onestop_parallel_sentence_"
+                elif 'text' in task:
+                    readability_extra = task[len("onestop_parallel_text_"):]
+                    task_name = "onestop_parallel_text_"
+                else:
+                    logger.warning("Onestop_parallel specification not found. Using sentence level as default.")
+                    readability_extra = task[len("onestop_parallel_sentence_"):]
+                    task_name = "onestop_parallel_sentence_"
+                train_datasets.append(dataset_class.get(task_name, seed=data_args.data_seed).get_dataset(
                 split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style))
             else:
                 train_datasets.append(dataset_class.get(task, seed=data_args.data_seed).get_dataset(
@@ -192,9 +200,16 @@ def main():
         for task in data_args.eval_tasks:
             # Check if the task starts with "onestop_parallel_"
             if task.startswith("onestop_parallel_"):
-                readability_extra = task[len("onestop_parallel_"):]
-                task_name = "onestop_parallel_"
-
+                if 'sentence' in task:
+                    readability_extra = task[len("onestop_parallel_sentence_"):]
+                    task_name = "onestop_parallel_sentence_"
+                elif 'text' in task:
+                    readability_extra = task[len("onestop_parallel_text_"):]
+                    task_name = "onestop_parallel_text_"
+                else:
+                    logger.warning("Onestop_parallel specification not found. Using sentence level as default.")
+                    readability_extra = task[len("onestop_parallel_sentence_"):]
+                    task_name = "onestop_parallel_sentence_"
                 # Get the dataset for the task with the readability_extra parameter
                 eval_datasets[task] = dataset_class.get(
                     task_name, seed=data_args.data_seed
@@ -225,9 +240,16 @@ def main():
         for task in data_args.eval_tasks:
             # Check if the task starts with "onestop_parallel_"
             if task.startswith("onestop_parallel_"):
-                readability_extra = task[len("onestop_parallel_"):]
-                task_name = "onestop_parallel_"
-
+                if 'sentence' in task:
+                    readability_extra = task[len("onestop_parallel_sentence_"):]
+                    task_name = "onestop_parallel_sentence_"
+                elif 'text' in task:
+                    readability_extra = task[len("onestop_parallel_text_"):]
+                    task_name = "onestop_parallel_text_"
+                else:
+                    logger.warning("Onestop_parallel specification not found. Using sentence level as default.")
+                    readability_extra = task[len("onestop_parallel_sentence_"):]
+                    task_name = "onestop_parallel_sentence_"
                 # Get the dataset for the task with the readability_extra parameter
                 test_dataset[task] = dataset_class.get(
                     task_name, seed=data_args.data_seed

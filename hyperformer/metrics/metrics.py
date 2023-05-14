@@ -298,7 +298,12 @@ def build_compute_metrics_fn(task_names: List[str],
     def tasks_metrics(task) -> Dict:
         from data.tasks import TASK_MAPPING
         from data.postprocessors import get_post_processor
-        task = 'onestop_parallel_' if task.startswith('onestop_parallel_') else task
+        if task.startswith('onestop_parallel_sentence'):
+            task = 'onestop_parallel_sentence_'
+        elif task.startswith('onestop_parallel_text'):
+            task = 'onestop_parallel_text_'
+        else:
+            task = task
         return functools.partial(compute_metrics, metrics=TASK_MAPPING[task].metrics,
                                  post_processor=get_post_processor(task))
 

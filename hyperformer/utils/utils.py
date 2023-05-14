@@ -85,7 +85,12 @@ def get_last_checkpoint_path(output_dir):
 
 def use_task_specific_params(model, task):
     """Update config with task specific params during evaluation."""
-    task = 'onestop_parallel_' if task.startswith('onestop_parallel_') else task
+    if task.startswith('onestop_parallel_sentence'):
+        task = 'onestop_parallel_sentence_'
+    elif task.startswith('onestop_parallel_text'):
+        task = 'onestop_parallel_text_'
+    else:
+        task = task
     task_dataset = TASK_MAPPING[task]
     task_specific_config = task_dataset.task_specific_config
     if task_specific_config is not None:
