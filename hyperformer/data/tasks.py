@@ -124,7 +124,7 @@ class AbstractTaskDataset(abc.ABC):
         else:
             return indices[validation_size // 2:]
 
-    def get_dataset(self, split, n_obs=None, readability_extra = None, readability_vector_style = None, add_prefix=True, split_validation_test=False):
+    def get_dataset(self, split, n_obs=None, readability_extra = None, readability_vector_style = None, add_prefix=True, split_validation_test=False, n_task_embedding_dim=None):
         # For small datasets (n_samples < 10K) without test set, we divide validation set to
         # half, use one half as test set and one half as validation set.
         if split_validation_test and self.name in self.small_datasets_without_all_splits \
@@ -152,7 +152,11 @@ class AbstractTaskDataset(abc.ABC):
             else:
                 # shuffles the data and samples it.
                 dataset = self.get_shuffled_sampled_split(split, n_obs)
-        return dataset.map(functools.partial(self.preprocessor, add_prefix=add_prefix, readability_vector_style=readability_vector_style),
+        if readability_extra is not None:
+            return dataset.map(functools.partial(self.preprocessor, add_prefix=add_prefix, readability_vector_style=readability_vector_style, n_task_embedding_dim=n_task_embedding_dim),
+                           remove_columns=dataset.column_names)
+        else:
+            return dataset.map(functools.partial(self.preprocessor, add_prefix=add_prefix),
                            remove_columns=dataset.column_names)
 
     def seq2seq_format(self, src_strs: List[str], tgt_strs: List[str],
@@ -163,7 +167,7 @@ class AbstractTaskDataset(abc.ABC):
                 "tgt_texts": ' '.join(tgt_strs),
                 "task": self.name}
     
-    def make_readability_hypernetwork_input_vector(self, src_readability, tgt_readability, readability_vector_style, readability_map):
+    def make_readability_hypernetwork_input_vector(self, src_readability, tgt_readability, readability_vector_style, readability_map, n_task_embedding_dim):
         """
         Create a vector of the source and target readability scores, with a size of 32 for each pair of src_readability and tgt_readability.
         
@@ -176,21 +180,21 @@ class AbstractTaskDataset(abc.ABC):
         Returns:
         numpy.ndarray: A numpy array containing the calculated readability vector.
         """
-        
+        half_embedding_dim = int(n_task_embedding_dim / 2) # 32 for 64
         # Create the source and target readability vectors
-        src_readability_vector = [1] * readability_map[src_readability] + [0] * (32 - readability_map[src_readability])
-        tgt_readability_vector = [1] * readability_map[tgt_readability] + [0] * (32 - readability_map[tgt_readability])
+        src_readability_vector = [1] * readability_map[src_readability] + [0] * (half_embedding_dim - readability_map[src_readability])
+        tgt_readability_vector = [1] * readability_map[tgt_readability] + [0] * (half_embedding_dim  - readability_map[tgt_readability])
 
         if readability_vector_style == 'both':
             readability_vector_np = np.array(src_readability_vector + tgt_readability_vector)
         elif readability_vector_style == 'source_only':
-            readability_vector_np = np.array(src_readability_vector + [0] * 32)
+            readability_vector_np = np.array(src_readability_vector + [0] * half_embedding_dim)
         elif readability_vector_style == 'target_only':
-            readability_vector_np = np.array(tgt_readability_vector + [0] * 32)
+            readability_vector_np = np.array(tgt_readability_vector + [0] * half_embedding_dim)
         elif readability_vector_style == 'difference':  # readability_vector_style is difference of the two, as a 64-dimensional vector
             difference = readability_map[src_readability] - readability_map[tgt_readability]
             sign = -1 if difference > 0 else 1
-            readability_vector = [sign] * abs(difference) + [0] * (64 - abs(difference))
+            readability_vector = [sign] * abs(difference) + [0] * (n_task_embedding_dim - abs(difference))
             readability_vector_np = np.array(readability_vector)
         else: # We should never get here, but just in case
             raise ValueError('Invalid input_style: ' + readability_vector_style)
@@ -215,6 +219,7 @@ class OneStopParallelTextMappingClass(AbstractTaskDataset):
     metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
     metrics.AVG_ASL_SRC_PRED_DIFF,
     metrics.AVG_ASL_PRED_TGT_ABSDIFF,
+    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE
     ]
 
 
@@ -234,12 +239,12 @@ class OneStopParallelTextMappingClass(AbstractTaskDataset):
                 "task": self.name,
                 "readability_vector": readability_vector}
 
-    def preprocessor(self, example, readability_vector_style, add_prefix=False):
+    def preprocessor(self, example, readability_vector_style, n_task_embedding_dim, add_prefix=False):
         # Extract the source and target texts from the provided example
         src_texts = [example['SourceText']]
         tgt_texts = [example['TargetText']]
-        readability_map = {'ADV': 32, 'INT': 16, 'ELE': 8}
-        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map)
+        readability_map = {'ADV': (n_task_embedding_dim  / 3), 'INT': (n_task_embedding_dim / 4), 'ELE': (n_task_embedding_dim / 8 )} # 64 is ADV 24 -> INT 16 , -> ELE 8 
+        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map, n_task_embedding_dim = n_task_embedding_dim)
         # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
         # This method combines the texts and adds an optional prefix to the source text
         return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')
@@ -263,6 +268,7 @@ class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
     metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
     metrics.AVG_ASL_SRC_PRED_DIFF,
     metrics.AVG_ASL_PRED_TGT_ABSDIFF,
+    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE
     ]
 
 
@@ -282,12 +288,12 @@ class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
                 "task": self.name,
                 "readability_vector": readability_vector}
 
-    def preprocessor(self, example, readability_vector_style, add_prefix=False):
+    def preprocessor(self, example, readability_vector_style, n_task_embedding_dim = 64, add_prefix=False):
         # Extract the source and target texts from the provided example
         src_texts = [example['SourceText']]
         tgt_texts = [example['TargetText']]
-        readability_map = {'ADV': 32, 'INT': 16, 'ELE': 8}
-        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map)
+        readability_map = {'ADV': int(n_task_embedding_dim  / 3), 'INT': int(n_task_embedding_dim / 4), 'ELE': int(n_task_embedding_dim / 8 )} # 64 is ADV 24 -> INT 16 , -> ELE 8 
+        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map, n_task_embedding_dim = n_task_embedding_dim)
         # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
         # This method combines the texts and adds an optional prefix to the source text
         return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')

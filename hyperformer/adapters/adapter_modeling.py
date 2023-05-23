@@ -87,7 +87,6 @@ class AdapterLayersHyperNetController(nn.Module):
         # self.token_type_embeddings = nn.Embedding(self.max_position_embeddings,
         #                                          self.task_embedding_dim).to(self.device)
         config.task_embedding_dim = self.task_embedding_dim * (2 + (0 if config.readability_vector_style == 'None' else 1))
-        print(' THE TEMP TASK EMBEDDING DIM' +str(config.task_embedding_dim))
         self.task_hypernet = TaskHyperNet(config)
         config.task_embedding_dim = self.task_embedding_dim
         self.unique_hyper_net_layer_norm = config.unique_hyper_net_layer_norm

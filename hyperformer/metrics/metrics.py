@@ -5,12 +5,80 @@ import scipy
 import math
 import sklearn
 import textstat
+import torch
 from logging import getLogger
 from third_party.utils import calculate_rouge, calculate_bleu, lmap
 from transformers import EvalPrediction, PreTrainedTokenizer
 from typing import Callable, Dict, List, Tuple
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+cola_model_name = "cointegrated/roberta-large-cola-krishna2020"
+
+cola_tokenizer = None
+cola_model = None
+
+# paraphrase_model_name = "insert_name"
+
+# paraphrase_tokenizer = None
+# paraphrasea_model = None
 
 logger = getLogger(__name__)
+
+def LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE(inputs, predictions, targets) -> dict:
+    """Using the Cola already trained model, assess the percentage of linguistically accepted sentences.
+    
+    Note: Takes 3 (instead of 1) inputs for compatibility reasons.
+    """
+    global cola_model, cola_tokenizer
+    if cola_model is None or cola_tokenizer is None:
+        print('downloading Cola Model')
+        cola_tokenizer = AutoTokenizer.from_pretrained(cola_model_name)
+        cola_model = AutoModelForSequenceClassification.from_pretrained(cola_model_name)
+        cola_model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+
+    # Tokenize all texts.
+    model_inputs = cola_tokenizer(predictions, return_tensors="pt", truncation=True, padding=True)
+    model_inputs = {name: tensor.to(cola_model.device) for name, tensor in model_inputs.items()}
+
+    with torch.no_grad():
+        logits = cola_model(**model_inputs)[0]
+
+    predicted_classes = torch.argmax(logits, dim=-1)
+    # Count the number of instances where the predicted class is 0 (grammatically correct)
+    count_class_0 = (predicted_classes == 0).sum().item()
+    # Calculate the percentage of predicted class being 1
+    percentage_class_0 = (count_class_0 / len(predicted_classes)) * 100
+
+    return {"LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE": percentage_class_0}
+
+
+# def CORRECT_PARAPHRASE_PERCENTAGE(inputs, predictions, targets) -> dict:
+#     """Using the model trained in another part of this project, access the percentage of correct paraphrases.
+    
+#     Note: Takes 3 (instead of 2) inputs for compatibility reasons
+#     """
+#     global paraphrase_model, paraphrase_tokenizer
+#     if paraphrase_model is None or paraphrase_tokenizer is None:
+#         paraphrase_tokenizer = AutoTokenizer.from_pretrained(paraphrase_model_name)
+#         paraphrase_model = AutoModelForSequenceClassification.from_pretrained(paraphrase_model_name)
+#         paraphrase_model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+#     # Tokenize the sentences in this batch and convert them to tensors
+
+#     model_inputs = paraphrase_tokenizer(inputs, predictions, padding=True, truncation=True, max_length=512, return_tensors="pt")
+#     model_inputs = {k: v.to('cuda' if torch.cuda.is_available() else 'cpu') for k, v in inputs.items()}
+
+#     # Get the model's output for this batch
+#     with torch.no_grad():
+#         outputs = paraphrase_model(**model_inputs)
+#         logits = outputs.logits
+
+#     predicted_classes = torch.argmax(logits, dim=-1)
+#     # Count the number of instances where the predicted class is 1 (grammatically correct)
+#     count_class_1 = (predicted_classes == 1).sum().item()
+#     # Calculate the percentage of predicted class being 1
+#     percentage_class_1 = (count_class_1 / len(predicted_classes)) * 100
+
+#     return {"CORRECT_PARAPHRASE_PERCENTAGE": percentage_class_1}
 
 def AVG_GFI_SRC_PRED_DIFF(inputs, predictions, targets) -> dict:
     """Pairwise (SRC-PRED) difference Gunning Fog Index (GFI) score.

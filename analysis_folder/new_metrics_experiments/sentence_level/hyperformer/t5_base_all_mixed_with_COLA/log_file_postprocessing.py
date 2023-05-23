@@ -92,7 +92,7 @@ for metric_id, metric in enumerate(metric_suffixes):
             axes[row, col].set_title(f"{combination[0]}_{combination[1]}: {condensed_metric_name(current_metric)}")
 
             # Set x-axis to show equal increments up to 65000
-            axes[row, col].set_xticks(np.arange(0, 65536, 15000))  # Modify the step size according to your preference
+            axes[row, col].set_xticks(np.arange(0, 65536, 15000))  # Modify the step size according to preference
     
     plt.tight_layout()
     plt.savefig(f'{metric}_comparison_plot.png', dpi=300)

@@ -186,7 +186,7 @@ def main():
                     readability_extra = task[len("onestop_parallel_sentence_"):]
                     task_name = "onestop_parallel_sentence_"
                 train_datasets.append(dataset_class.get(task_name, seed=data_args.data_seed).get_dataset(
-                split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style))
+                split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style, n_task_embedding_dim = adapter_args.task_embedding_dim))
             else:
                 train_datasets.append(dataset_class.get(task, seed=data_args.data_seed).get_dataset(
                 split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True))
@@ -220,9 +220,10 @@ def main():
                     split_validation_test=training_args.split_validation_test,
                     readability_extra=readability_extra,
                     readability_vector_style=data_args.readability_vector_style,
+                    n_task_embedding_dim = adapter_args.task_embedding_dim
                 )
             else:
-                # Get the dataset for the task without the readability_extra parameter
+                # Get the dataset for the task without the readability_extra (or task embedding dim) parameter
                 eval_datasets[task] = dataset_class.get(
                     task, seed=data_args.data_seed
                 ).get_dataset(
@@ -252,14 +253,15 @@ def main():
                     task_name = "onestop_parallel_sentence_"
                 # Get the dataset for the task with the readability_extra parameter
                 test_dataset[task] = dataset_class.get(
-                    task_name, seed=data_args.data_seed
+                    task_name, seed=data_args.data_seed 
                 ).get_dataset(
                     split="test",
                     n_obs=data_args.n_test,
                     add_prefix=False if training_args.train_adapters else True,
                     split_validation_test=training_args.split_validation_test,
                     readability_extra=readability_extra,
-                    readability_vector_style=data_args.readability_vector_style
+                    readability_vector_style=data_args.readability_vector_style,
+                    n_task_embedding_dim = adapter_args.task_embedding_dim
                 )
             else:
                 # Get the dataset for the task without the readability_extra parameter
