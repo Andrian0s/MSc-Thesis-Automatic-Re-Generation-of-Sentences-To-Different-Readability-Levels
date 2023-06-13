@@ -124,7 +124,9 @@ def main():
     else:
         adapter_config = None
 
-    if data_args.readability_vector_style is not 'none':
+    if adapter_args.random_initial_task_embeddings is not 'None' and adapter_config:
+        adapter_config.random_initial_task_embeddings = adapter_args.random_initial_task_embeddings
+    if data_args.readability_vector_style is not 'None' and adapter_config:
         adapter_config.readability_vector_style = data_args.readability_vector_style
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else \
@@ -158,7 +160,7 @@ def main():
 
     # freezing the parameters.
     if training_args.do_train:
-        freezing_params(model, training_args, model_args, adapter_args)
+        freezing_params(model, training_args, model_args, adapter_args, data_args.readability_vector_style == 'separate', data_args.freeze_task_embeddings)
 
     if training_args.print_num_parameters:
         logger.info(model)
@@ -359,6 +361,7 @@ def main():
             tokenizer.save_pretrained(training_args.output_dir)
      
     # Evaluation
+    # SAVE HERE THE TASK_TO_TASK_EMBEDDINGS adapter_config.
     all_metrics = {}
     if training_args.do_eval or training_args.do_test:
         if trainer.is_world_process_zero():

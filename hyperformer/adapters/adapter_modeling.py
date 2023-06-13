@@ -86,7 +86,7 @@ class AdapterLayersHyperNetController(nn.Module):
                                                 self.task_embedding_dim).to(self.device)
         # self.token_type_embeddings = nn.Embedding(self.max_position_embeddings,
         #                                          self.task_embedding_dim).to(self.device)
-        config.task_embedding_dim = self.task_embedding_dim * (2 + (0 if config.readability_vector_style == 'None' else 1))
+        config.task_embedding_dim = self.task_embedding_dim * 2 # self.task_embedding_dim * (2 + (0 if config.readability_vector_style == 'None' else 1))
         self.task_hypernet = TaskHyperNet(config)
         config.task_embedding_dim = self.task_embedding_dim
         self.unique_hyper_net_layer_norm = config.unique_hyper_net_layer_norm
@@ -123,8 +123,7 @@ class AdapterLayersHyperNetController(nn.Module):
         layer_embedding = self.layer_id_embeddings(layer_id_tensor)
         layer_embedding = layer_embedding.view(-1)
         embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1)], axis=0)
-        
-        if readability:
+        if readability: # unreachable, in case of reversing
             readability_embedding = torch.FloatTensor(readability).to(self.device)
             embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1), readability_embedding.view(1, -1)],
                                 axis=0)
@@ -137,7 +136,10 @@ class AdapterLayersHyperNetController(nn.Module):
         return embeddings
 
     def forward(self, task_embedding, layer_id, readability=None):
-        embeddings = self.get_embedding(task_embedding, layer_id, readability=readability)
+        # print('Task Embeddings shape : ' + str(task_embedding.shape))
+        # print('Task Embeddings: ')
+        # print(task_embedding)
+        # embeddings = self.get_embedding(task_embedding, layer_id, readability=None)
         # Generates the adapters weights in feed-forward and self-attention modules.
         feed_forward_down = self.feed_forward_down_sampler_hyper_net(embeddings)
         feed_forward_up = self.feed_forward_up_sampler_hyper_net(embeddings)
@@ -177,7 +179,7 @@ class AdapterLayersOneHyperNetController(nn.Module):
         # This is 2 types of adapters for feed-forward, and self-attention.
         self.adapters_block_type = nn.Embedding(2, self.task_embedding_dim).to(self.device)
 
-        config.task_embedding_dim = self.task_embedding_dim * (3 + (0 if config.readability_vector_style == 'None' else 1))
+        config.task_embedding_dim = self.task_embedding_dim * 3 # self.task_embedding_dim * (3 + (0 if config.readability_vector_style == 'None' else 1))
         self.task_hypernet = TaskHyperNet(config)
         config.task_embedding_dim = self.task_embedding_dim
         self.unique_hyper_net_layer_norm = config.unique_hyper_net_layer_norm
@@ -210,7 +212,7 @@ class AdapterLayersOneHyperNetController(nn.Module):
         type_embedding = self.adapters_block_type(type_id_tensor)
         layer_embedding = layer_embedding.view(-1)
         type_embedding = type_embedding.view(-1)
-        if readability:
+        if readability: # unreachable, in case of reversing
             readability_embedding = torch.FloatTensor(readability).to(self.device)
             embeddings = torch.cat([task_embedding.view(1, -1), layer_embedding.view(1, -1), type_embedding.view(1, -1), readability_embedding.view(1, -1)],
                                 axis=0)
@@ -223,8 +225,11 @@ class AdapterLayersOneHyperNetController(nn.Module):
         return embeddings
 
     def forward(self, task_embedding, layer_id, readability=None):
-        feed_forward_embeddings = self.get_embedding(task_embedding, layer_id, 0, readability)
-        self_attention_embeddings = self.get_embedding(task_embedding, layer_id, 1, readability)
+        # print('Task Embeddings shape : ' + str(task_embedding.shape))
+        # print('Task Embeddings: ')
+        # print(task_embedding)
+        feed_forward_embeddings = self.get_embedding(task_embedding, layer_id, 0, None)
+        self_attention_embeddings = self.get_embedding(task_embedding, layer_id, 1, None)
 
         # print('Feed Forward Embeddings shape : ' + str(feed_forward_embeddings.shape))
         # print('Feed Forward Embeddings: ')

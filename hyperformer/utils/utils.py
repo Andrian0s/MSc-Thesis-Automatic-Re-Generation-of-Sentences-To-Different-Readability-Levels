@@ -104,7 +104,7 @@ def reset_config(model, config):
     logger.info(f"config is reset to the initial values.")
 
 
-def freezing_params(model, training_args, model_args, adapter_args):
+def freezing_params(model, training_args, model_args, adapter_args, separate_encoder_decoder, freeze_task_embeddings):
     """
     Freezes the model parameters based on the given setting in the arguments.
     Args:
@@ -122,8 +122,20 @@ def freezing_params(model, training_args, model_args, adapter_args):
                 for param_name, param in sub_module.named_parameters():
                     param.requires_grad = True
         if adapter_args.adapter_config_name == "meta-adapter":
-            for param in model.task_embedding_controller.parameters():
-                param.requires_grad = True
+            if separate_encoder_decoder:
+                if not freeze_task_embeddings:
+                    for param in model.task_embedding_controller_encoder.parameters():
+                        param.requires_grad = True
+                    for param in model.task_embedding_controller_decoder.parameters():
+                        param.requires_grad = True
+                else:
+                    print("SKIPPED separate parameters requiring gradient.")
+            else:
+                if not freeze_task_embeddings:
+                    for param in model.task_embedding_controller_joint.parameters():
+                        param.requires_grad = True
+                else:
+                    print("SKIPPED joint parameters requiring gradient.")
         if adapter_args.unique_hyper_net:
             for name, sub_module in model.named_modules():
                 if isinstance(sub_module, (AdapterLayersHyperNetController, AdapterController)):

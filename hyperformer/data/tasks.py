@@ -185,7 +185,7 @@ class AbstractTaskDataset(abc.ABC):
         src_readability_vector = [1] * readability_map[src_readability] + [0] * (half_embedding_dim - readability_map[src_readability])
         tgt_readability_vector = [1] * readability_map[tgt_readability] + [0] * (half_embedding_dim  - readability_map[tgt_readability])
 
-        if readability_vector_style == 'both':
+        if readability_vector_style == 'both' or readability_vector_style == 'separate': # This is just to hadnle this extra case, to be removed in the future.
             readability_vector_np = np.array(src_readability_vector + tgt_readability_vector)
         elif readability_vector_style == 'source_only':
             readability_vector_np = np.array(src_readability_vector + [0] * half_embedding_dim)
@@ -204,24 +204,42 @@ class OneStopParallelTextMappingClass(AbstractTaskDataset):
     name = 'onestop_parallel_text_plhsrc_plhtgt'
     task_specific_config = {'max_length': 300, 'num_beams': 4}
     metrics = [
-    metrics.rouge,
+    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE,
+    metrics.SRC_PRED_EXACT_COPY_PERCENTAGE,
+    metrics.AVG_PRED_TGT_LEV_DIST,
     metrics.AVG_GFI_SRC_PRED_DIFF,
-    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
     metrics.AVG_FRE_SRC_PRED_DIFF,
-    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
     metrics.AVG_FKGL_SRC_PRED_DIFF,
-    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
     metrics.AVG_ARI_SRC_PRED_DIFF,
-    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
     metrics.AVG_DCRF_SRC_PRED_DIFF,
-    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
     metrics.AVG_SMOG_SRC_PRED_DIFF,
-    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
     metrics.AVG_ASL_SRC_PRED_DIFF,
+    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
+    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
+    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
+    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
+    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
+    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
     metrics.AVG_ASL_PRED_TGT_ABSDIFF,
-    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE
+    metrics.PRED_ONLY_GFI,
+    metrics.PRED_ONLY_FRE,
+    metrics.PRED_ONLY_FKGL,
+    metrics.PRED_ONLY_ARI,
+    metrics.PRED_ONLY_DCRF,
+    metrics.PRED_ONLY_SMOG,
+    metrics.PRED_ONLY_ASL,
+    metrics.rouge,
     ]
 
+
+    name_to_prefix = {
+        'onestop_parallel_text_adv_int' : 'Simplify from advanced to intermediate: ',
+        'onestop_parallel_text_adv_ele' : 'Simplify from advanced to elementary: ',
+        'onestop_parallel_text_int_ele' : 'Simplify from intermediate to elementary: ',
+        'onestop_parallel_text_ele_int' : 'Rewrite from elementary to intermediate: ',
+        'onestop_parallel_text_ele_adv' : 'Rewrite from elementary to advanced: ',
+        'onestop_parallel_text_int_adv' : 'Rewrite from intermediate to advanced: ',
+    }
 
     def load_dataset(self, split, readability_extra):
         self.name = 'onestop_parallel_text_' + readability_extra
@@ -243,33 +261,52 @@ class OneStopParallelTextMappingClass(AbstractTaskDataset):
         # Extract the source and target texts from the provided example
         src_texts = [example['SourceText']]
         tgt_texts = [example['TargetText']]
-        readability_map = {'ADV': (n_task_embedding_dim  / 3), 'INT': (n_task_embedding_dim / 4), 'ELE': (n_task_embedding_dim / 8 )} # 64 is ADV 24 -> INT 16 , -> ELE 8 
+        readability_map = {'ADV': int(n_task_embedding_dim  / 3), 'INT': int(n_task_embedding_dim / 4), 'ELE': int(n_task_embedding_dim / 8 )} # 64 is ADV 24 -> INT 16 , -> ELE 8 
         readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map, n_task_embedding_dim = n_task_embedding_dim)
         # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
         # This method combines the texts and adds an optional prefix to the source text
-        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')
+        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix=self.name_to_prefix[self.name])
 
 class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
     name = 'onestop_parallel_sentence_plhsrc_plhtgt'
     task_specific_config = {'max_length': 300, 'num_beams': 4}
     metrics = [
-    metrics.rouge,
+    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE,
+    metrics.CORRECT_PARAPHRASE_PERCENTAGE,
+    metrics.SRC_PRED_EXACT_COPY_PERCENTAGE,
+    metrics.AVG_PRED_TGT_LEV_DIST,
     metrics.AVG_GFI_SRC_PRED_DIFF,
-    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
     metrics.AVG_FRE_SRC_PRED_DIFF,
-    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
     metrics.AVG_FKGL_SRC_PRED_DIFF,
-    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
     metrics.AVG_ARI_SRC_PRED_DIFF,
-    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
     metrics.AVG_DCRF_SRC_PRED_DIFF,
-    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
     metrics.AVG_SMOG_SRC_PRED_DIFF,
-    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
     metrics.AVG_ASL_SRC_PRED_DIFF,
+    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
+    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
+    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
+    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
+    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
+    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
     metrics.AVG_ASL_PRED_TGT_ABSDIFF,
-    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE
+    metrics.PRED_ONLY_GFI,
+    metrics.PRED_ONLY_FRE,
+    metrics.PRED_ONLY_FKGL,
+    metrics.PRED_ONLY_ARI,
+    metrics.PRED_ONLY_DCRF,
+    metrics.PRED_ONLY_SMOG,
+    metrics.PRED_ONLY_ASL,
+    metrics.rouge,
     ]
+
+    name_to_prefix = {
+        'onestop_parallel_sentence_adv_int' : 'Simplify from advanced to intermediate: ',
+        'onestop_parallel_sentence_adv_ele' : 'Simplify from advanced to elementary: ',
+        'onestop_parallel_sentence_int_ele' : 'Simplify from intermediate to elementary: ',
+        'onestop_parallel_sentence_ele_int' : 'Rewrite from elementary to intermediate: ',
+        'onestop_parallel_sentence_ele_adv' : 'Rewrite from elementary to advanced: ',
+        'onestop_parallel_sentence_int_adv' : 'Rewrite from intermediate to advanced: ',
+    }
 
 
     def load_dataset(self, split, readability_extra):
@@ -296,7 +333,7 @@ class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
         readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map, n_task_embedding_dim = n_task_embedding_dim)
         # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
         # This method combines the texts and adds an optional prefix to the source text
-        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix='')
+        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix=self.name_to_prefix[self.name])
     
 class IMDBTaskDataset(AbstractTaskDataset):
     name = "imdb"

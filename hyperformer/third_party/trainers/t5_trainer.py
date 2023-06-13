@@ -564,8 +564,16 @@ class T5Trainer(Trainer):
             "num_beams": self.config.num_beams
         }
         gen_kwargs["task"] = inputs["task"]
-        gen_kwargs["task_embedding"] = model.task_embedding_controller(inputs["task"]) if \
-            (self.config.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None
+        if (self.config.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)):
+            if self.adapter_config.readability_vector_style == 'separate':
+                gen_kwargs["encoder_task_embedding"] = model.task_embedding_controller_encoder(inputs["task"])
+                gen_kwargs["decoder_task_embedding"] = model.task_embedding_controller_decoder(inputs["task"])
+            else:
+                gen_kwargs["encoder_task_embedding"] = model.task_embedding_controller_joint(inputs["task"])
+                gen_kwargs["decoder_task_embedding"] = model.task_embedding_controller_joint(inputs["task"])
+        else:
+            gen_kwargs["encoder_task_embedding"] = None
+            gen_kwargs["decoder_task_embedding"] = None
         gen_kwargs["readability_vector"] = inputs["readability_vector"] if \
             (self.config.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None
         if self.args.predict_with_generate and not self.args.prediction_loss_only:

@@ -259,7 +259,8 @@ class T5Stack(T5PreTrainedModel):
             output_hidden_states=None,
             return_dict=None,
             task=None,
-            task_embedding=None,
+            encoder_task_embedding=None, # for compatibility, not both are used
+            decoder_task_embedding=None, # for compatibility, not both are used.
             readability_vector=None
     ):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
@@ -331,10 +332,7 @@ class T5Stack(T5PreTrainedModel):
             # Computes the adapter weights for the T5 Block.
             t5_block_adapters = None
             if self.train_adapters and (self.unique_hyper_net or self.efficient_unique_hyper_net):
-                if readability_vector:
-                    t5_block_adapters = self.adapter_layers_hyper_net(task_embedding, i, readability_vector)    
-                else:
-                    t5_block_adapters = self.adapter_layers_hyper_net(task_embedding, i)
+                t5_block_adapters = self.adapter_layers_hyper_net(task_embedding=decoder_task_embedding if self.is_decoder else encoder_task_embedding, layer_id=i, readability=readability_vector)    
 
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
@@ -351,7 +349,7 @@ class T5Stack(T5PreTrainedModel):
                 use_cache=use_cache,
                 output_attentions=output_attentions,
                 task=task,
-                task_embedding=task_embedding,
+                task_embedding = decoder_task_embedding if self.is_decoder else encoder_task_embedding,
                 t5_block_adapters=t5_block_adapters
             )
             # layer_outputs is a tuple with:
@@ -413,7 +411,14 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         # Computes the task-embeddings.
         self.train_adapters = config.train_adapters
         if config.train_adapters and isinstance(adapter_config, MetaAdapterConfig):
-            self.task_embedding_controller = TaskEmbeddingController(adapter_config)
+            if adapter_config.readability_vector_style == 'separate':
+                adapter_config.readability_vector_style = 'source_only'
+                self.task_embedding_controller_encoder = TaskEmbeddingController(adapter_config)
+                adapter_config.readability_vector_style = 'target_only'
+                self.task_embedding_controller_decoder = TaskEmbeddingController(adapter_config)
+                adapter_config.readability_vector_style = 'separate'
+            else:
+                self.task_embedding_controller_joint = TaskEmbeddingController(adapter_config)
         self.adapter_config = adapter_config
         self.model_dim = config.d_model
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
@@ -465,7 +470,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             output_hidden_states=None,
             return_dict=None,
             task=None,
-            task_embedding=None,
+            encoder_task_embedding=None,
+            decoder_task_embedding=None,
             **kwargs,
     ):
         r"""
@@ -521,7 +527,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             past_key_values = kwargs.pop("decoder_past_key_values")
         if "readability_vector" in kwargs:
             warnings.warn(
-                "Using readability_vector'as input to train the model. Modelling_t5.py should be changed accordingly.",FutureWarning
+                "Using readability_vector'as as initialisation of the task_embeddings.",FutureWarning
             )
             # readability_vector = kwargs.get("readability_vector")
             readability_vector = kwargs.pop("readability_vector")
@@ -530,6 +536,13 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        if (self.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)):
+            if self.adapter_config.readability_vector_style == 'separate':
+                encoder_task_embedding = self.task_embedding_controller_encoder(task)
+            else:
+                encoder_task_embedding = self.task_embedding_controller_joint(task)
+        else:
+            encoder_task_embedding = None
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
             # Convert encoder inputs in embeddings if needed
@@ -542,9 +555,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
                 task=task,
-                task_embedding=self.task_embedding_controller(task) if self.train_adapters \
-                                                                       and isinstance(self.adapter_config,
-                                                                                      MetaAdapterConfig) else None,
+                encoder_task_embedding=encoder_task_embedding,
                 readability_vector = readability_vector
             )
         elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
@@ -567,6 +578,13 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             if decoder_inputs_embeds is not None:
                 decoder_inputs_embeds = decoder_inputs_embeds[:, -1:]
 
+        if (self.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)):
+            if self.adapter_config.readability_vector_style == 'separate':
+                decoder_task_embedding = self.task_embedding_controller_decoder(task)
+            else:
+                decoder_task_embedding = self.task_embedding_controller_joint(task)
+        else:
+            decoder_task_embedding = None
         # Decode
         decoder_outputs = self.decoder(
             input_ids=decoder_input_ids,
@@ -581,8 +599,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             task=task,
-            task_embedding=self.task_embedding_controller(task) \
-                if (self.train_adapters and isinstance(self.adapter_config, MetaAdapterConfig)) else None,
+            decoder_task_embedding=decoder_task_embedding,
             readability_vector = readability_vector
         )
 
@@ -627,7 +644,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             "attention_mask": attention_mask,
             "use_cache": use_cache,
             "task": kwargs["task"],
-            "task_embedding": kwargs["task_embedding"],
+            "encoder_task_embedding": kwargs["encoder_task_embedding"],
+            "decoder_task_embedding": kwargs["decoder_task_embedding"],
             "readability_vector": kwargs["readability_vector"]
         }
 

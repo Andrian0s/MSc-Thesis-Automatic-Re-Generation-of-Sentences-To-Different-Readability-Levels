@@ -175,6 +175,12 @@ class DataTrainingArguments:
             "help": "The style of the initial readabiltiy vector if any, Options are 'both', 'source_only', 'target_only', 'difference', 'None'." 
         },
     )
+    freeze_task_embeddings: Optional[bool] = field(
+        default=False,
+        metadata={
+            "help": "Boolean whether we should freeze the task embeddings. " 
+        },
+    )
     n_train: Optional[int] = field(default=-1, metadata={"help": "# training examples. -1 means use all."})
     n_val: Optional[int] = field(default=-1, metadata={"help": "# validation examples. -1 means use all."})
     n_test: Optional[int] = field(default=-1, metadata={"help": "# test examples. -1 means use all."})
@@ -217,6 +223,9 @@ class AdapterTrainingArguments:
                                                    metadata={"help": "Implements conditional layer norms "
                                                                      "modulated based on task embeddings."})
     train_adapters_blocks: bool = field(default=True, metadata={"help": "If set, uses adapter blocks."})
+
+    random_initial_task_embeddings: bool = field(default=False, metadata={"help": "If set, instead of readability vectors we have a random initialisation"})
+    
     unique_hyper_net: bool = field(default=False, metadata={"help": "If set, uses one hyper network"
                                                                     "to generates the adapter weights"
                                                                     "for all the layers."})

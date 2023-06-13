@@ -6,21 +6,23 @@ import math
 import sklearn
 import textstat
 import torch
+import re
 from logging import getLogger
 from third_party.utils import calculate_rouge, calculate_bleu, lmap
 from transformers import EvalPrediction, PreTrainedTokenizer
 from typing import Callable, Dict, List, Tuple
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from Levenshtein import ratio as lev_ratio
 
 cola_model_name = "cointegrated/roberta-large-cola-krishna2020"
 
 cola_tokenizer = None
 cola_model = None
 
-# paraphrase_model_name = "insert_name"
+paraphrase_model_name = "Andrianos/paraphrase_classification_onestop_and_adversarial"
 
-# paraphrase_tokenizer = None
-# paraphrasea_model = None
+paraphrase_tokenizer = None
+paraphrase_model = None
 
 logger = getLogger(__name__)
 
@@ -52,33 +54,33 @@ def LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE(inputs, predictions, targets) -
     return {"LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE": percentage_class_0}
 
 
-# def CORRECT_PARAPHRASE_PERCENTAGE(inputs, predictions, targets) -> dict:
-#     """Using the model trained in another part of this project, access the percentage of correct paraphrases.
+def CORRECT_PARAPHRASE_PERCENTAGE(inputs, predictions, targets) -> dict:
+    """Using the model trained in another part of this project, access the percentage of correct paraphrases.
     
-#     Note: Takes 3 (instead of 2) inputs for compatibility reasons
-#     """
-#     global paraphrase_model, paraphrase_tokenizer
-#     if paraphrase_model is None or paraphrase_tokenizer is None:
-#         paraphrase_tokenizer = AutoTokenizer.from_pretrained(paraphrase_model_name)
-#         paraphrase_model = AutoModelForSequenceClassification.from_pretrained(paraphrase_model_name)
-#         paraphrase_model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-#     # Tokenize the sentences in this batch and convert them to tensors
+    Note: Takes 3 (instead of 2) inputs for compatibility reasons
+    """
+    global paraphrase_model, paraphrase_tokenizer
+    if paraphrase_model is None or paraphrase_tokenizer is None:
+        print('downloading Paraphrase Model')
+        paraphrase_tokenizer = AutoTokenizer.from_pretrained(paraphrase_model_name)
+        paraphrase_model = AutoModelForSequenceClassification.from_pretrained(paraphrase_model_name)
+        paraphrase_model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    
+    # Tokenize the sentences in this batch and convert them to tensors 
+    model_inputs = paraphrase_tokenizer(inputs, predictions, padding=True, truncation=True, max_length=512, return_tensors="pt")
+    model_inputs = {k: v.to('cuda' if torch.cuda.is_available() else 'cpu') for k, v in model_inputs.items()}
 
-#     model_inputs = paraphrase_tokenizer(inputs, predictions, padding=True, truncation=True, max_length=512, return_tensors="pt")
-#     model_inputs = {k: v.to('cuda' if torch.cuda.is_available() else 'cpu') for k, v in inputs.items()}
+    # Get the model's output for this batch
+    with torch.no_grad():
+        logits = paraphrase_model(**model_inputs)[0]
 
-#     # Get the model's output for this batch
-#     with torch.no_grad():
-#         outputs = paraphrase_model(**model_inputs)
-#         logits = outputs.logits
+    predicted_classes = torch.argmax(logits, dim=-1)
+    # Count the number of instances where the predicted class is 1 (grammatically correct)
+    count_class_1 = (predicted_classes == 1).sum().item()
+    # Calculate the percentage of predicted class being 1
+    percentage_class_1 = (count_class_1 / len(predicted_classes)) * 100
 
-#     predicted_classes = torch.argmax(logits, dim=-1)
-#     # Count the number of instances where the predicted class is 1 (grammatically correct)
-#     count_class_1 = (predicted_classes == 1).sum().item()
-#     # Calculate the percentage of predicted class being 1
-#     percentage_class_1 = (count_class_1 / len(predicted_classes)) * 100
-
-#     return {"CORRECT_PARAPHRASE_PERCENTAGE": percentage_class_1}
+    return {"CORRECT_PARAPHRASE_PERCENTAGE": percentage_class_1}
 
 def AVG_GFI_SRC_PRED_DIFF(inputs, predictions, targets) -> dict:
     """Pairwise (SRC-PRED) difference Gunning Fog Index (GFI) score.
@@ -206,61 +208,80 @@ def AVG_ASL_PRED_TGT_ABSDIFF(inputs, predictions, targets) -> dict:
     target_scores = np.array([textstat.avg_sentence_length(target) for target in targets])
     return {"AVG_ASL_PRED_TGT_ABSDIFF": np.mean(np.abs(pred_scores - target_scores))}
 
-def TGT_ONLY_GFI(inputs, predictions, targets) -> dict:
+def PRED_ONLY_GFI(inputs, predictions, targets) -> dict:
     """Target only Average Gunning Average Fog Index (GFI) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.gunning_fog(pred) for pred in predictions]
-    return {"TGT_ONLY_GFI": np.mean(scores)}
+    return {"PRED_ONLY_GFI": np.mean(scores)}
 
-def TGT_ONLY_FRE(inputs, predictions, targets) -> dict:
+def PRED_ONLY_FRE(inputs, predictions, targets) -> dict:
     """Target only Average Flesch Reading Ease (FRE) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.flesch_reading_ease(pred) for pred in predictions]
-    return {"TGT_ONLY_FRE": np.mean(scores)}
+    return {"PRED_ONLY_FRE": np.mean(scores)}
 
-def TGT_ONLY_FKGL(inputs, predictions, targets) -> dict:
+def PRED_ONLY_FKGL(inputs, predictions, targets) -> dict:
     """Target only Average Flesch-Kincaid Grade Level (FKGL) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.flesch_kincaid_grade(pred) for pred in predictions]
-    return {"TGT_ONLY_FKGL": np.mean(scores)}
+    return {"PRED_ONLY_FKGL": np.mean(scores)}
 
-def TGT_ONLY_ARI(inputs, predictions, targets) -> dict:
+def PRED_ONLY_ARI(inputs, predictions, targets) -> dict:
     """Target only Average Automated Readability Index (ARI) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.automated_readability_index(pred) for pred in predictions]
-    return {"TGT_ONLY_ARI": np.mean(scores)}
+    return {"PRED_ONLY_ARI": np.mean(scores)}
 
-def TGT_ONLY_DCRF(inputs, predictions, targets) -> dict:
+def PRED_ONLY_DCRF(inputs, predictions, targets) -> dict:
     """Target only Average Dale-Chall Readability Formula (DCRF) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.dale_chall_readability_score(pred) for pred in predictions]
-    return {"TGT_ONLY_DCRF": np.mean(scores)}
+    return {"PRED_ONLY_DCRF": np.mean(scores)}
 
-def TGT_ONLY_SMOG(inputs, predictions, targets) -> dict:
+def PRED_ONLY_SMOG(inputs, predictions, targets) -> dict:
     """Target only Average Simple Measure of Gobbledygook (SMOG) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.smog_index(pred) for pred in predictions]
-    return {"TGT_ONLY_SMOG": np.mean(scores)}
+    return {"PRED_ONLY_SMOG": np.mean(scores)}
 
-def TGT_ONLY_ASL(inputs, predictions, targets) -> dict:
+def PRED_ONLY_ASL(inputs, predictions, targets) -> dict:
     """Target only (Averaged) Average Sentence Length (ASL) score.
     
-    Note: Takes 2 inputs for compatibility reasons.
+    Note: Takes 3 inputs for compatibility reasons.
     """
     scores = [textstat.avg_sentence_length(pred) for pred in predictions]
-    return {"TGT_ONLY_ASL": np.mean(scores)}
+    return {"PRED_ONLY_ASL": np.mean(scores)}
+
+def SRC_PRED_EXACT_COPY_PERCENTAGE(inputs, predictions, targets) -> dict:
+    """Calculate the percentage of exact copies in predictions with respect to source inputs.
+
+    Note: Takes 3 inputs for compatibility reasons.
+    """
+    exact_copies = sum(pred == input for pred, input in zip(predictions, inputs))
+    return {"SRC_PRED_EXACT_COPY_PERCENTAGE": 100 * exact_copies / len(predictions) if predictions else 0}
+
+def AVG_PRED_TGT_LEV_DIST(inputs, predictions, targets) -> dict:
+    """Calculate the average normalised Levenshtein distance between predictions and targets.
+
+    Note: Takes 3 inputs for compatibility reasons.
+    """
+    ratios = []
+    for pred, tgt in zip(predictions, targets):
+        ratios.append(lev_ratio(pred,tgt))
+    return {"AVG_PRED_TGT_LEV_DIST": (sum(ratios) / len(ratios)) if predictions else 0}
+
 
 def rouge(inputs, predictions, targets) -> dict:
     """Computes rouge score."""
@@ -347,11 +368,38 @@ def build_compute_metrics_fn(task_names: List[str],
         input_str, pred_str, label_str = decode_pred(pred) # checked for validity once already.
         # Applies task post-processor.
         if post_processor is not None:
-            if input_str is not None:
-                input_str = [post_processor(input) for input in input_str]
+            input_str = [post_processor(pred) for pred in pred_str] # not sure if necessary, irrelevant anyway.
             pred_str = [post_processor(pred) for pred in pred_str]
             label_str = [post_processor(label) for label in label_str]
+        if input_str is not None:
+                prefixes = [
+                'Simplify from advanced to intermediate: ',
+                'Simplify from advanced to elementary: ',
+                'Simplify from intermediate to elementary: ',
+                'Rewrite from elementary to intermediate: ',
+                'Rewrite from elementary to advanced: ',
+                'Rewrite from intermediate to advanced: ',
+                ]
+                # Boolean variable to track if a prefix was found in the current string.
+                prefix_found = True
 
+                # Loop over each string in the input list.
+                for i in range(len(input_str)):
+                    # Initially set prefix_found to False for each new string.
+                    prefix_found = False
+                    # Loop over each prefix.
+                    for prefix in prefixes:
+                        # Check if the current string starts with the current prefix.
+                        if input_str[i].startswith(prefix):
+                            # If it does, remove the prefix and set prefix_found to True.
+                            input_str[i] = re.sub('^' + prefix, '', input_str[i])
+                            prefix_found = True
+                            # Break the inner loop as we have found a prefix in the current string.
+                            break
+                    if not prefix_found: # If no prefix was found after checking all prefixes, no need to check all inputs.
+                        break
+                if prefix_found:
+                    print('Removed all prefixes from strings') # else nothing prints.
         eval_results = {}
         for metric in metrics:
             if input_str is not None:
