@@ -89,6 +89,8 @@ def use_task_specific_params(model, task):
         task = 'onestop_parallel_sentence_'
     elif task.startswith('onestop_parallel_text'):
         task = 'onestop_parallel_text_'
+    elif task.startswith('newsela_parallel_sentence'):
+        task = 'newsela_parallel_sentence_'
     else:
         task = task
     task_dataset = TASK_MAPPING[task]

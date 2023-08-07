@@ -20,9 +20,18 @@ class ReadabilityVectorsSetup:
         readability_vector_style.
         """
         self.tasks = adapter_config.tasks
-        self.readability_map = {'adv': int(adapter_config.task_embedding_dim / 3), 
-                                'int': int(adapter_config.task_embedding_dim / 4), 
-                                'ele': int(adapter_config.task_embedding_dim / 8 )} 
+        self.readability_map_dict = {}
+        for task in self.tasks:
+            if 'onestop' in task:
+                self.readability_map_dict[task] = {'adv': int(adapter_config.task_embedding_dim / 3), 
+                                        'int': int(adapter_config.task_embedding_dim / 4), 
+                                        'ele': int(adapter_config.task_embedding_dim / 8 )}
+            elif 'newsela' in task:
+                self.readability_map_dict[task] = {'Level0': int(adapter_config.task_embedding_dim / 3), 
+                                        'Level1': int(adapter_config.task_embedding_dim / 4), 
+                                        'Level3': int(adapter_config.task_embedding_dim / 8 )} 
+            else:
+                print('unexpected task ' + task)
         self.n_task_embedding_dim = adapter_config.task_embedding_dim
         self.readability_vector_style = adapter_config.readability_vector_style
         self.task_to_readability_vector = {}
@@ -30,7 +39,8 @@ class ReadabilityVectorsSetup:
         # For each task, generate its readability vector
         for task_name in self.tasks:
             src_readability, tgt_readability = self.task_to_src_tgt_readability(task_name)
-            self.task_to_readability_vector[task_name] = self.make_readability_hypernetwork_input_vector(src_readability, tgt_readability, self.readability_vector_style, self.readability_map, self.n_task_embedding_dim)
+            current_readability_map = self.readability_map_dict[task]
+            self.task_to_readability_vector[task_name] = self.make_readability_hypernetwork_input_vector(src_readability, tgt_readability, self.readability_vector_style, current_readability_map, self.n_task_embedding_dim)
     
     def make_readability_hypernetwork_input_vector(self, src_readability, tgt_readability, readability_vector_style, readability_map, n_task_embedding_dim):
         """

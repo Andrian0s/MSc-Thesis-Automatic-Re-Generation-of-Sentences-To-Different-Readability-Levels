@@ -2,7 +2,7 @@
 "model_name_or_path": "t5-small",
 "tokenizer_name": "t5-small",
 "learning_rate": 3e-4,
-"output_dir": "outputs/finetune/",
+"output_dir": "outputs/baselines/t5-small/onestop_shared_params_baseline/",
 "max_source_length": 128,
 "max_target_length": 128 ,
 "val_max_target_length":128,
@@ -32,7 +32,8 @@
 "greater_is_better": true,
 "max_steps": 65536,
 "tasks": ["onestop_parallel_sentence_adv_int", "onestop_parallel_sentence_adv_ele", "onestop_parallel_sentence_ele_int", "onestop_parallel_sentence_ele_adv", "onestop_parallel_sentence_int_adv", "onestop_parallel_sentence_int_ele"],
-"eval_tasks": ["onestop_parallel_sentence_adv_int", "onestop_parallel_sentence_adv_ele", "onestop_parallel_sentence_ele_int", "onestop_parallel_sentence_ele_adv", "onestop_parallel_sentence_int_adv", "onestop_parallel_sentence_int_ele"]
+"eval_tasks": ["onestop_parallel_sentence_adv_int", "onestop_parallel_sentence_adv_ele", "onestop_parallel_sentence_ele_int", "onestop_parallel_sentence_ele_adv", "onestop_parallel_sentence_int_adv", "onestop_parallel_sentence_int_ele"],
+"logging_file_directory" : "log_files/baselines/t5-small/onestop_shared_params_baseline.log"
 }
 
 

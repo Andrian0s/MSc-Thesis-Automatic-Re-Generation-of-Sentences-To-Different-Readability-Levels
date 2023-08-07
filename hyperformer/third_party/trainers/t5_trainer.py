@@ -259,7 +259,7 @@ class T5Trainer(Trainer):
             reset_config(self.model, model_config)
 
         # Computes the average metrics across all the tasks without their corresponding losses.
-        metrics = [results[key] for key in results.keys() if "loss" not in key]
+        metrics = [results[key] for key in results.keys() if "SARI" in key]
         results['eval_average_metrics'] = np.mean(metrics)
         self.control = self.callback_handler.on_evaluate(self.args, self.state, self.control, results)
         return results

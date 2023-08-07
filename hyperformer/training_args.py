@@ -56,6 +56,8 @@ class Seq2SeqTrainingArguments(TrainingArguments):
                                                                     "value for sampling across the multiple datasets."})
     train_adapters: Optional[bool] = field(default=False, metadata={"help":
                                                                         "Train an adapter instead of the full model."})
+    force_no_prefix: Optional[bool] = field(default=False, metadata={"help":
+                                                                        "Force using no prefix when training the model."})
     do_test: bool = field(default=False, metadata={"help": "Whether to comptue evaluation metrics on the test sets."})
     eval_output_dir: Optional[str] = field(default=None, metadata={
         "help": "The output directory where the evaluation of the model and checkpoints during "
@@ -81,6 +83,11 @@ class Seq2SeqTrainingArguments(TrainingArguments):
     compute_memory: Optional[bool] = field(default=False,
                                            metadata={"help": "If specified, measures the memory needed."})
     compute_time: Optional[bool] = field(default=False, metadata={"help": "If specified, measures the time needed."})
+
+    logging_file_directory: Optional[str] = field(
+        default='log_files/output.log',
+        metadata={"help": "The logging directory."},
+    )
     include_inputs_for_metrics: Optional[bool] = field(
         default=True,
         metadata={

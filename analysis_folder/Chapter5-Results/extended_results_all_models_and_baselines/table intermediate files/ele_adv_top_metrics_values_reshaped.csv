@@ -1,0 +1,91 @@
+Model,Metric,Value
+Base H++(Combined),SARI,0.86853001
+Base H++(Combined),Fluency,0.555
+Base H++(Combined),Corr. P,0.980952381
+Base H++(Combined),Copies,0.061904762
+Base H++(Combined),GFI,12.68142857
+Base H++(Combined),FRE,62.74314286
+Base H++(Combined),FKGL,10.14285714
+Base H++(Combined),ARI,12.46857143
+Base H++(Combined),ASL,22.65571429
+Base H++(Separate),SARI,0.87632248
+Base H++(Separate),Fluency,0.555
+Base H++(Separate),Corr. P,0.99047619
+Base H++(Separate),Copies,0.071428571
+Base H++(Separate),GFI,12.60352381
+Base H++(Separate),FRE,62.79147619
+Base H++(Separate),FKGL,10.12238095
+Base H++(Separate),ARI,12.46095238
+Base H++(Separate),ASL,22.60809524
+Base Pairwise Adapters,SARI,0.800220312
+Base Pairwise Adapters,Fluency,0.555
+Base Pairwise Adapters,Corr. P,1
+Base Pairwise Adapters,Copies,0.195238095
+Base Pairwise Adapters,GFI,12.54580952
+Base Pairwise Adapters,FRE,63.54404762
+Base Pairwise Adapters,FKGL,10.03142857
+Base Pairwise Adapters,ARI,12.43047619
+Base Pairwise Adapters,ASL,22.66047619
+Base Pairwise Full Model,SARI,0.796336082
+Base Pairwise Full Model,Fluency,0.555
+Base Pairwise Full Model,Corr. P,1
+Base Pairwise Full Model,Copies,0.204761905
+Base Pairwise Full Model,GFI,12.613
+Base Pairwise Full Model,FRE,63.486
+Base Pairwise Full Model,FKGL,10.05428571
+Base Pairwise Full Model,ARI,12.39666667
+Base Pairwise Full Model,ASL,22.71761905
+Base String Prefix,SARI,0.930266506
+Base String Prefix,Fluency,0.555
+Base String Prefix,Corr. P,0.99047619
+Base String Prefix,Copies,0.033333333
+Base String Prefix,GFI,12.74761905
+Base String Prefix,FRE,61.93133333
+Base String Prefix,FKGL,10.29571429
+Base String Prefix,ARI,12.69285714
+Base String Prefix,ASL,22.82047619
+Small H++(Combined),SARI,0.676952271
+Small H++(Combined),Fluency,0.961904762
+Small H++(Combined),Corr. P,1
+Small H++(Combined),Copies,0.238095238
+Small H++(Combined),GFI,11.93352381
+Small H++(Combined),FRE,65.77233333
+Small H++(Combined),FKGL,9.478095238
+Small H++(Combined),ARI,11.68047619
+Small H++(Combined),ASL,21.6952381
+Small H++(Separate),SARI,0.663450784
+Small H++(Separate),Fluency,0.966666667
+Small H++(Separate),Corr. P,0.985714286
+Small H++(Separate),Copies,0.280952381
+Small H++(Separate),GFI,11.92404762
+Small H++(Separate),FRE,65.68028571
+Small H++(Separate),FKGL,9.445238095
+Small H++(Separate),ARI,11.67
+Small H++(Separate),ASL,21.50809524
+Small Pairwise Adapters,SARI,0.504257127
+Small Pairwise Adapters,Fluency,0.952380952
+Small Pairwise Adapters,Corr. P,1
+Small Pairwise Adapters,Copies,0.485714286
+Small Pairwise Adapters,GFI,11.5017619
+Small Pairwise Adapters,FRE,67.158
+Small Pairwise Adapters,FKGL,9.105238095
+Small Pairwise Adapters,ARI,11.15761905
+Small Pairwise Adapters,ASL,20.9652381
+Small Pairwise Full Model,SARI,0.794779457
+Small Pairwise Full Model,Fluency,0.976190476
+Small Pairwise Full Model,Corr. P,0.99047619
+Small Pairwise Full Model,Copies,0.204761905
+Small Pairwise Full Model,GFI,12.5532381
+Small Pairwise Full Model,FRE,63.81804762
+Small Pairwise Full Model,FKGL,9.976190476
+Small Pairwise Full Model,ARI,12.34238095
+Small Pairwise Full Model,ASL,22.58904762
+Small String Prefix,SARI,0.932153938
+Small String Prefix,Fluency,0.976190476
+Small String Prefix,Corr. P,0.995238095
+Small String Prefix,Copies,0.00952381
+Small String Prefix,GFI,12.7737619
+Small String Prefix,FRE,62.00714286
+Small String Prefix,FKGL,10.2852381
+Small String Prefix,ARI,12.69095238
+Small String Prefix,ASL,22.8252381

@@ -271,6 +271,7 @@ class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
     name = 'onestop_parallel_sentence_plhsrc_plhtgt'
     task_specific_config = {'max_length': 300, 'num_beams': 4}
     metrics = [
+    metrics.SARI,
     metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE,
     metrics.CORRECT_PARAPHRASE_PERCENTAGE,
     metrics.SRC_PRED_EXACT_COPY_PERCENTAGE,
@@ -330,6 +331,75 @@ class OneStopParallelSentenceMappingClass(AbstractTaskDataset):
         src_texts = [example['SourceText']]
         tgt_texts = [example['TargetText']]
         readability_map = {'ADV': int(n_task_embedding_dim  / 3), 'INT': int(n_task_embedding_dim / 4), 'ELE': int(n_task_embedding_dim / 8 )} # 64 is ADV 24 -> INT 16 , -> ELE 8 
+        readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map, n_task_embedding_dim = n_task_embedding_dim)
+        # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
+        # This method combines the texts and adds an optional prefix to the source text
+        return self.seq2seq_format(src_texts, tgt_texts, readability_vectors, add_prefix, prefix=self.name_to_prefix[self.name])
+    
+
+class NewsElaParallelSentenceMappingClass(AbstractTaskDataset):
+    name = 'newsela_parallel_sentence_plhsrc_plhtgt'
+    task_specific_config = {'max_length': 300, 'num_beams': 4}
+    metrics = [
+    metrics.SARI,
+    metrics.LINGUISTIC_SENTENCE_ACCEPTABILITY_PERCENTAGE,
+    metrics.CORRECT_PARAPHRASE_PERCENTAGE,
+    metrics.SRC_PRED_EXACT_COPY_PERCENTAGE,
+    metrics.AVG_PRED_TGT_LEV_DIST,
+    metrics.AVG_GFI_SRC_PRED_DIFF,
+    metrics.AVG_FRE_SRC_PRED_DIFF,
+    metrics.AVG_FKGL_SRC_PRED_DIFF,
+    metrics.AVG_ARI_SRC_PRED_DIFF,
+    metrics.AVG_DCRF_SRC_PRED_DIFF,
+    metrics.AVG_SMOG_SRC_PRED_DIFF,
+    metrics.AVG_ASL_SRC_PRED_DIFF,
+    metrics.AVG_GFI_PRED_TGT_ABSDIFF,
+    metrics.AVG_FRE_PRED_TGT_ABSDIFF,
+    metrics.AVG_FKGL_PRED_TGT_ABSDIFF,
+    metrics.AVG_ARI_PRED_TGT_ABSDIFF,
+    metrics.AVG_DCRF_PRED_TGT_ABSDIFF,
+    metrics.AVG_SMOG_PRED_TGT_ABSDIFF,
+    metrics.AVG_ASL_PRED_TGT_ABSDIFF,
+    metrics.PRED_ONLY_GFI,
+    metrics.PRED_ONLY_FRE,
+    metrics.PRED_ONLY_FKGL,
+    metrics.PRED_ONLY_ARI,
+    metrics.PRED_ONLY_DCRF,
+    metrics.PRED_ONLY_SMOG,
+    metrics.PRED_ONLY_ASL,
+    metrics.rouge,
+    ]
+
+    name_to_prefix = {
+        'newsela_parallel_sentence_Level0_Level1' : 'Simplify from advanced to intermediate: ',
+        'newsela_parallel_sentence_Level0_Level3' : 'Simplify from advanced to elementary: ',
+        'newsela_parallel_sentence_Level1_Level3' : 'Simplify from intermediate to elementary: ',
+        'newsela_parallel_sentence_Level3_Level1' : 'Rewrite from elementary to intermediate: ',
+        'newsela_parallel_sentence_Level3_Level0' : 'Rewrite from elementary to advanced: ',
+        'newsela_parallel_sentence_Level1_Level0' : 'Rewrite from intermediate to advanced: ',
+    }
+
+    def load_dataset(self, split, readability_extra):
+        self.name = 'newsela_parallel_sentence_' + readability_extra
+        # Read the filtered DataFrame into a Hugging Face Dataset object
+        df = pd.read_csv(f"data/newsela_dataset/sentence_level/{readability_extra}/parallel_{split}.csv")
+        hf_dataset = datasets.Dataset.from_pandas(df)
+        return hf_dataset
+    
+    def seq2seq_format(self, src_strs: List[str], tgt_strs: List[str], readability_vector: np.ndarray,
+                    add_prefix: bool = False, prefix: str = None):
+        src_prefix = self.name if prefix is None else prefix
+        src_strs = [src_prefix] + src_strs if add_prefix else src_strs
+        return {"src_texts": ' '.join(src_strs),
+                "tgt_texts": ' '.join(tgt_strs),
+                "task": self.name,
+                "readability_vector": readability_vector}
+
+    def preprocessor(self, example, readability_vector_style, n_task_embedding_dim = 64, add_prefix=False):
+        # Extract the source and target texts from the provided example
+        src_texts = [example['SourceText']]
+        tgt_texts = [example['TargetText']]
+        readability_map = {'Level0': int(n_task_embedding_dim  / 3), 'Level1': int(n_task_embedding_dim / 4), 'Level3': int(n_task_embedding_dim / 8 )} # 64 is Level0 24 -> Level1 16 , -> Level0 8 
         readability_vectors = self.make_readability_hypernetwork_input_vector(src_readability = example['SourceLevel'], tgt_readability = example['TargetLevel'], readability_vector_style = readability_vector_style, readability_map = readability_map, n_task_embedding_dim = n_task_embedding_dim)
         # Convert the source and target texts into the seq2seq format using the seq2seq_format() method
         # This method combines the texts and adds an optional prefix to the source text
@@ -908,6 +978,7 @@ class CommonsenseQaTaskDataset(AbstractTaskDataset):
 
 TASK_MAPPING = OrderedDict([
     ('onestop_parallel_sentence_', OneStopParallelSentenceMappingClass) ,
+    ('newsela_parallel_sentence_', NewsElaParallelSentenceMappingClass) ,
     ('onestop_parallel_text_', OneStopParallelTextMappingClass),
     ('superglue-boolq', SuperGLUEBoolQTaskDataset),
     ('superglue-cb', SuperGLUECBTaskDataset),

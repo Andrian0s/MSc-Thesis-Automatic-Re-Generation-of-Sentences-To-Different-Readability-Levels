@@ -31,8 +31,8 @@
 "metric_for_best_model": "average_metrics",
 "greater_is_better": true,
 "max_steps": 65536,
-"tasks": ["onestop_parallel_text_adv_int", "onestop_parallel_text_adv_ele", "onestop_parallel_text_ele_int", "onestop_parallel_text_ele_adv", "onestop_parallel_text_int_adv", "onestop_parallel_text_int_ele"],
-"eval_tasks": ["onestop_parallel_text_adv_int", "onestop_parallel_text_adv_ele", "onestop_parallel_text_ele_int", "onestop_parallel_text_ele_adv", "onestop_parallel_text_int_adv", "onestop_parallel_text_int_ele"],
+"tasks": ["newsela_parallel_sentence_Level0_Level1", "newsela_parallel_sentence_Level0_Level3", "newsela_parallel_sentence_Level3_Level1", "newsela_parallel_sentence_Level3_Level0", "newsela_parallel_sentence_Level1_Level0", "newsela_parallel_sentence_Level1_Level3"],
+"eval_tasks": ["newsela_parallel_sentence_Level0_Level1", "newsela_parallel_sentence_Level0_Level3", "newsela_parallel_sentence_Level3_Level1", "newsela_parallel_sentence_Level3_Level0", "newsela_parallel_sentence_Level1_Level0", "newsela_parallel_sentence_Level1_Level3"],
 "train_adapters": true,
 "reduction_factor": 32,
 "freeze_task_embeddings" : false,
@@ -43,8 +43,10 @@
 "unfreeze_lm_head": false,
 "unfreeze_layer_norms": true,
 "efficient_unique_hyper_net": true,
-"adapter_config_name": "meta-adapter"
+"adapter_config_name": "meta-adapter",
+"logging_file_directory" : "log_files/current_run.log"
 }
+
 
 
 

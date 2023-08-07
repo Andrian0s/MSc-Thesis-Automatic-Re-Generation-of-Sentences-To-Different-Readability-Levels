@@ -1,0 +1,55 @@
+Model,Metric,Value
+Base H++(Combined),SARI,0.915313371
+Base H++(Combined),Fluency,0.555
+Base H++(Combined),Corr. P,0.971428571
+Base H++(Combined),Copies,0.028571429
+Base H++(Combined),GFI,11.4687619
+Base H++(Combined),FRE,67.36109524
+Base H++(Combined),FKGL,9.007619048
+Base H++(Combined),ARI,11.13904762
+Base H++(Combined),ASL,20.68571429
+Base H++(Separate),SARI,0.917778577
+Base H++(Separate),Fluency,0.555
+Base H++(Separate),Corr. P,0.971428571
+Base H++(Separate),Copies,0.019047619
+Base H++(Separate),GFI,11.43647619
+Base H++(Separate),FRE,62.10952381
+Base H++(Separate),FKGL,9.723333333
+Base H++(Separate),ARI,12.14904762
+Base H++(Separate),ASL,20.62047619
+Base H++(Combined) LHyp,SARI,0.916970576
+Base H++(Combined) LHyp,Fluency,0.555
+Base H++(Combined) LHyp,Corr. P,0.961904762
+Base H++(Combined) LHyp,Copies,0.033333333
+Base H++(Combined) LHyp,GFI,11.38685714
+Base H++(Combined) LHyp,FRE,67.59980952
+Base H++(Combined) LHyp,FKGL,8.965238095
+Base H++(Combined) LHyp,ARI,11.09571429
+Base H++(Combined) LHyp,ASL,20.64904762
+Base H++(Separate) LHyp,SARI,0.918479052
+Base H++(Separate) LHyp,Fluency,0.555
+Base H++(Separate) LHyp,Corr. P,0.966666667
+Base H++(Separate) LHyp,Copies,0.023809524
+Base H++(Separate) LHyp,GFI,11.467
+Base H++(Separate) LHyp,FRE,67.26295238
+Base H++(Separate) LHyp,FKGL,9.015714286
+Base H++(Separate) LHyp,ARI,11.15047619
+Base H++(Separate) LHyp,ASL,20.66333333
+Base H++(Original),SARI,0.901826002
+Base H++(Original),Fluency,0.555
+Base H++(Original),Corr. P,0.976190476
+Base H++(Original),Copies,0.038095238
+Base H++(Original),GFI,11.52480952
+Base H++(Original),FRE,67.32119048
+Base H++(Original),FKGL,9.05047619
+Base H++(Original),ARI,11.20095238
+Base H++(Original),ASL,20.84428571
+Base String Prefix,SARI,0.938555954
+Base String Prefix,Fluency,0.555
+Base String Prefix,Corr. P,0.961904762
+Base String Prefix,Copies,0.019047619
+Base String Prefix,GFI,11.48742857
+Base String Prefix,FRE,67.52690476
+Base String Prefix,FKGL,9.001428571
+Base String Prefix,ARI,11.14952381
+Base String Prefix,ASL,20.76047619

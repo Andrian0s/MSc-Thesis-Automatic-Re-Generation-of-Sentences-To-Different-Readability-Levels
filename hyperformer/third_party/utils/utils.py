@@ -72,7 +72,6 @@ def lmap(f: Callable, x: Iterable) -> List:
     """list(map(f, x))"""
     return list(map(f, x))
 
-
 def calculate_bleu(output_lns, refs_lns, **kwargs) -> dict:
     """Uses sacrebleu's corpus_bleu implementation."""
     return {"bleu": round(corpus_bleu(output_lns, [refs_lns], **kwargs).score, 4)}

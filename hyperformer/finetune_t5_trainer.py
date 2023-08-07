@@ -58,7 +58,7 @@ def main():
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO if training_args.local_rank in [-1, 0] else logging.WARN,
-	filename="output.log",  # Add this line to log messages to a file named "output.log"
+	    filename=training_args.logging_file_directory,  # Add this line to log messages to a file named "output.log"
     )
     logger.warning(
         "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
@@ -188,10 +188,23 @@ def main():
                     readability_extra = task[len("onestop_parallel_sentence_"):]
                     task_name = "onestop_parallel_sentence_"
                 train_datasets.append(dataset_class.get(task_name, seed=data_args.data_seed).get_dataset(
-                split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style, n_task_embedding_dim = adapter_args.task_embedding_dim))
+                split="train", n_obs=data_args.n_train, add_prefix=False if(training_args.train_adapters or training_args.force_no_prefix) else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style, n_task_embedding_dim = adapter_args.task_embedding_dim))
+            elif task.startswith("newsela_parallel_"):
+                if 'sentence' in task:
+                    readability_extra = task[len("newsela_parallel_sentence_"):]
+                    task_name = "newsela_parallel_sentence_"
+                elif 'text' in task:
+                    readability_extra = task[len("newsela_parallel_text_"):]
+                    task_name = "newsela_parallel_text_"
+                else:
+                    logger.warning("newsela_parallel specification not found. Using sentence level as default.")
+                    readability_extra = task[len("newsela_parallel_sentence_"):]
+                    task_name = "newsela_parallel_sentence_"
+                train_datasets.append(dataset_class.get(task_name, seed=data_args.data_seed).get_dataset(
+                split="train", n_obs=data_args.n_train, add_prefix=False if(training_args.train_adapters or training_args.force_no_prefix) else True, readability_extra=readability_extra, readability_vector_style=data_args.readability_vector_style, n_task_embedding_dim = adapter_args.task_embedding_dim))
             else:
                 train_datasets.append(dataset_class.get(task, seed=data_args.data_seed).get_dataset(
-                split="train", n_obs=data_args.n_train, add_prefix=False if training_args.train_adapters else True))
+                split="train", n_obs=data_args.n_train, add_prefix=False if(training_args.train_adapters or training_args.force_no_prefix) else True ))
     dataset_sizes = [len(train_dataset) for train_dataset in train_datasets]
     train_dataset = datasets.concatenate_datasets(train_datasets)
     training_args.remove_unused_columns = False
@@ -218,7 +231,30 @@ def main():
                 ).get_dataset(
                     split="validation",
                     n_obs=data_args.n_val,
-                    add_prefix=False if training_args.train_adapters else True,
+                    add_prefix=False if (training_args.train_adapters or training_args.force_no_prefix) else True,
+                    split_validation_test=training_args.split_validation_test,
+                    readability_extra=readability_extra,
+                    readability_vector_style=data_args.readability_vector_style,
+                    n_task_embedding_dim = adapter_args.task_embedding_dim
+                )
+            elif task.startswith("newsela_parallel_"):
+                if 'sentence' in task:
+                    readability_extra = task[len("newsela_parallel_sentence_"):]
+                    task_name = "newsela_parallel_sentence_"
+                elif 'text' in task:
+                    readability_extra = task[len("newsela_parallel_text_"):]
+                    task_name = "newsela_parallel_text_"
+                else:
+                    logger.warning("newsela_parallel specification not found. Using sentence level as default.")
+                    readability_extra = task[len("newsela_parallel_sentence_"):]
+                    task_name = "newsela_parallel_sentence_"
+                # Get the dataset for the task with the readability_extra parameter
+                eval_datasets[task] = dataset_class.get(
+                    task_name, seed=data_args.data_seed
+                ).get_dataset(
+                    split="test", # validation set is underpopulated. Using test set instead. "validation", 
+                    n_obs=data_args.n_val,
+                    add_prefix=False if  (training_args.train_adapters or training_args.force_no_prefix) else True,
                     split_validation_test=training_args.split_validation_test,
                     readability_extra=readability_extra,
                     readability_vector_style=data_args.readability_vector_style,
@@ -231,7 +267,7 @@ def main():
                 ).get_dataset(
                     split="validation",
                     n_obs=data_args.n_val,
-                    add_prefix=False if training_args.train_adapters else True,
+                    add_prefix=False if (training_args.train_adapters or training_args.force_no_prefix) else True,
                     split_validation_test=training_args.split_validation_test,
                 )
     else:
@@ -259,7 +295,30 @@ def main():
                 ).get_dataset(
                     split="test",
                     n_obs=data_args.n_test,
-                    add_prefix=False if training_args.train_adapters else True,
+                    add_prefix=False if (training_args.train_adapters or training_args.force_no_prefix) else True,
+                    split_validation_test=training_args.split_validation_test,
+                    readability_extra=readability_extra,
+                    readability_vector_style=data_args.readability_vector_style,
+                    n_task_embedding_dim = adapter_args.task_embedding_dim
+                )
+            elif task.startswith("newsela_parallel_"):
+                if 'sentence' in task:
+                    readability_extra = task[len("newsela_parallel_sentence_"):]
+                    task_name = "newsela_parallel_sentence_"
+                elif 'text' in task:
+                    readability_extra = task[len("newsela_parallel_text_"):]
+                    task_name = "newsela_parallel_text_"
+                else:
+                    logger.warning("newsela_parallel specification not found. Using sentence level as default.")
+                    readability_extra = task[len("newsela_parallel_sentence_"):]
+                    task_name = "newsela_parallel_sentence_"
+                # Get the dataset for the task with the readability_extra parameter
+                test_dataset[task] = dataset_class.get(
+                    task_name, seed=data_args.data_seed 
+                ).get_dataset(
+                    split="test",
+                    n_obs=data_args.n_test,
+                    add_prefix=False if (training_args.train_adapters or training_args.force_no_prefix) else True,
                     split_validation_test=training_args.split_validation_test,
                     readability_extra=readability_extra,
                     readability_vector_style=data_args.readability_vector_style,
@@ -272,7 +331,7 @@ def main():
                 ).get_dataset(
                     split="test",
                     n_obs=data_args.n_test,
-                    add_prefix=False if training_args.train_adapters else True,
+                    add_prefix=False if (training_args.train_adapters or training_args.force_no_prefix) else True,
                     split_validation_test=training_args.split_validation_test,
                 )
     else:

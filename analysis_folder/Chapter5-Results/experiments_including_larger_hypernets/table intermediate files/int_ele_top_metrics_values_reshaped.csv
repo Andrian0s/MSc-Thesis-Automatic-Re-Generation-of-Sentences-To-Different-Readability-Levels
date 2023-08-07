@@ -1,0 +1,55 @@
+Model,Metric,Value
+Base H++(Combined),SARI,0.620381497
+Base H++(Combined),Fluency,0.555
+Base H++(Combined),Corr. P,0.946107784
+Base H++(Combined),Copies,0.269461078
+Base H++(Combined),GFI,10.90071856
+Base H++(Combined),FRE,68.79982036
+Base H++(Combined),FKGL,8.537724551
+Base H++(Combined),ARI,10.51017964
+Base H++(Combined),ASL,19.60778443
+Base H++(Separate),SARI,0.65117876
+Base H++(Separate),Fluency,0.555
+Base H++(Separate),Corr. P,0.958083832
+Base H++(Separate),Copies,0.209580838
+Base H++(Separate),GFI,10.71934132
+Base H++(Separate),FRE,69.60778443
+Base H++(Separate),FKGL,8.403592814
+Base H++(Separate),ARI,10.39341317
+Base H++(Separate),ASL,19.51017964
+Base H++(Combined) LHyp,SARI,0.652551882
+Base H++(Combined) LHyp,Fluency,0.555
+Base H++(Combined) LHyp,Corr. P,0.952095808
+Base H++(Combined) LHyp,Copies,0.233532934
+Base H++(Combined) LHyp,GFI,10.80754491
+Base H++(Combined) LHyp,FRE,69.23928144
+Base H++(Combined) LHyp,FKGL,8.518562874
+Base H++(Combined) LHyp,ARI,10.49161677
+Base H++(Combined) LHyp,ASL,19.77365269
+Base H++(Separate) LHyp,SARI,0.655748715
+Base H++(Separate) LHyp,Fluency,0.555
+Base H++(Separate) LHyp,Corr. P,0.952095808
+Base H++(Separate) LHyp,Copies,0.251497006
+Base H++(Separate) LHyp,GFI,10.75700599
+Base H++(Separate) LHyp,FRE,69.57568862
+Base H++(Separate) LHyp,FKGL,8.438323353
+Base H++(Separate) LHyp,ARI,10.39461078
+Base H++(Separate) LHyp,ASL,19.64191617
+Base H++(Original),SARI,0.618572492
+Base H++(Original),Fluency,0.555
+Base H++(Original),Corr. P,0.94011976
+Base H++(Original),Copies,0.221556886
+Base H++(Original),GFI,10.88269461
+Base H++(Original),FRE,68.88592814
+Base H++(Original),FKGL,8.531137725
+Base H++(Original),ARI,10.46586826
+Base H++(Original),ASL,19.62275449
+Base String Prefix,SARI,0.647342962
+Base String Prefix,Fluency,0.555
+Base String Prefix,Corr. P,0.94011976
+Base String Prefix,Copies,0.25748503
+Base String Prefix,GFI,10.86113772
+Base String Prefix,FRE,68.93790419
+Base String Prefix,FKGL,8.522155689
+Base String Prefix,ARI,10.53353293
+Base String Prefix,ASL,19.62155689
