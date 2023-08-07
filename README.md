@@ -1,4 +1,4 @@
-![image](https://github.com/Andrian0s/MThesis_Automatic_Re-Generation_of_Sentences_To_Different_Readability_Levels/assets/32796571/d23db12b-f089-4ca8-8df6-595824c512c5)# Master Thesis under [Mrinmaya lab](https://www.mrinmaya.io) at ETH Zurich titled Automatic Re-generation of Sentences To Different Readability Levels.
+# Master Thesis under [Mrinmaya lab](https://www.mrinmaya.io) at ETH Zurich titled Automatic Re-generation of Sentences To Different Readability Levels.
 
 This repository is a continuation of:
 
