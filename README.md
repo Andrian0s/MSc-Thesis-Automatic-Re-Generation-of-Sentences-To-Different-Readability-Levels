@@ -1,4 +1,4 @@
-# This is the repository for the Master Thesis under [Mrinmaya lab](https://www.mrinmaya.io) at ETH Zurich titled Automatic Re-generation of Sentences To Different Readability Levels.
+# Master Thesis under [Mrinmaya lab](https://www.mrinmaya.io) at ETH Zurich titled Automatic Re-generation of Sentences To Different Readability Levels.
 
 This repository is a continuation of:
 
