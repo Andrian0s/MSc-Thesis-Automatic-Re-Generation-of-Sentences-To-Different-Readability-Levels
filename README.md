@@ -1,69 +1,20 @@
+# This is the repository for the Master Thesis under [Mrinmaya lab](https://www.mrinmaya.io) at ETH Zurich titled Automatic Re-generation of Sentences To Different Readability Levels.
+
+This repository is a continuation of:
+
 # Parameter-efficient Multi-task Fine-tuning for Transformers via Shared Hypernetworks
 This repo contains the PyTorch implementation of the ACL, 2021 paper
 [Parameter-efficient Multi-task Fine-tuning for Transformers via Shared Hypernetworks](https://aclanthology.org/2021.acl-long.47.pdf).
 
-# Installation
-```
-python setup.py install 
-```
+The changes to this repository can be summarised as following:
+- Added of the ability to customly initialisate the task embeddings with a representation of the readability
+- Added the possibility to use separate Task Embedding Controllers between Encoder and Decoder networks.
+- Added support for the onestop parallel dataset (sentence or text based) (outside of huggingface datasets)
+- Added support for many metrics, including Language Models which evaluate fluency and preservence of original meaning
+- Made some minor improvements throughout the codebase, including a nicer log system for automatic postprocessing of results
 
-## How to run the models
-We provide example scripts for each model in `hyperformer/scripts/` folder with 
-their config files in `hyperformer/configs`. To run the models, please
-do `cd hyperformer` and:
+Future Work:
+- Cleanup the code to remove unused changes that are no longer used
+- Update the repository to use a more recent version of hugging face and Pytorch V2
 
- - To run hyperformer++ model (This model generates the task-specific adapters
-   using a shared hypernetwork, which is shared across the tasks and layers of a 
-   transformer.):
-   ```
-   bash scripts/hyperformer++.sh
-   ``` 
- - To run hyperformer model (This model generates the task-specific adapters using
-   a shared hypernetwork, which is shared across the tasks, but this is specific
-   to each layer of a transformer. This model is less efficient compared to 
-   hyperformer++.):
-   ```
-   bash scripts/hyperformer.sh
-   ``` 
- - To run adapter\dagger model (This model share the layer normalization
-   between adapters across the tasks, and train adapters in a multi-task
-   setting.):
-   ```
-   bash scripts/adapters_dagger.sh   
-   ``` 
- - To run adapter model (This model trains a single-adapter per task and
-   trains the adapters in a single-task learning.):
-   ```
-   bash scripts/adapters.sh 
-   ``` 
- - To run T5 finetuning model in a multi-task learning setup:
-   ```
-   bash scripts/finetune.sh
-   ```
-
- - To run T5 finetuning model in a single-task learning setup:
-   ```
-   bash scripts/finetune_single_task.sh
-   ```
-
-We run all the models on 4 GPUs, while this is not necessary and one can 
-run the models on 1 GPU. In case running on one GPU, in all the scripts, 
-please remove the `-m torch.distributed.launch --nproc_per_node=4` part.
-
-
-## Bibliography
-If you find this repo useful, please cite our paper.
-
-```
-@inproceedings{karimi2021parameterefficient,
-  title={Parameter-efficient Multi-task Fine-tuning for Transformers via Shared Hypernetworks},
-  author={Karimi Mahabadi, Rabeeh and Ruder, Sebastian and Dehghani, Mostafa and Henderson, James},
-  booktitle={Annual Meeting of the Association for Computational Linguistics},
-  year={2021}
-}
-```
-
-## Final words
-Hope this repo is useful for your research. For any questions, please create an issue or
-email rabeeh.k68@gmail.com, and I will get back to you as soon as possible.
-
+In contrast to the original paper, all of our models were trained on a single T4 GPU and to make experimenting easier we created experiment pipeline experiments, found under the scripts folder.
